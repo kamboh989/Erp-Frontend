@@ -12,7 +12,13 @@ export default function NavbarWithSidebar({ children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
-  const hideNavbar = pathname === '/';
+  const hideNavbar =
+  pathname === "/" ||
+  pathname === "/super-admin" ||
+  pathname.startsWith("/super-admin/companies") ||
+  pathname.startsWith("/super-admin/users") 
+
+  
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   // ✅ Detect screen size and set default
