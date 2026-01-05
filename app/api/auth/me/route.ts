@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { readAuthCookieFromReq } from "@/lib/auth";
+import { readCompanyCookie } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
-  const session = readAuthCookieFromReq(req);
+  const session = readCompanyCookie(req);
   return NextResponse.json({ session });
 }

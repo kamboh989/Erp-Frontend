@@ -1,11 +1,12 @@
-import React from 'react'
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import DashboardClient from "./dashboardclient";
 
-const page = () => {
-  return (
-    <div>
-      g
-    </div>
-  )
+export default async function DashboardPage() {
+  const cookieStore = await cookies(); // ✅ IMPORTANT
+  const token = cookieStore.get("erp_token")?.value;
+
+  if (!token) redirect("/");
+
+  return <DashboardClient />;
 }
-
-export default page

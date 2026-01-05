@@ -1,21 +1,31 @@
 import mongoose, { Schema, InferSchemaType } from "mongoose";
-import type { AppModule } from "@/types/rbac";
 
 const CompanySchema = new Schema(
   {
-    name: { type: String, required: true, trim: true },
+    businessName: { type: String, required: true, trim: true },
+    phone: { type: String, trim: true },
+
+    // login identity (owner email)
+    email: { type: String, required: true, lowercase: true, trim: true, unique: true },
+
+    // plan
+    planDays: { type: Number, required: true },
+    planStartsAt: { type: Date, required: true },
+    planExpiresAt: { type: Date, required: true },
+
+    // access control
+    enabledModules: { type: [String], default: [] },
+    maxUsers: { type: Number, default: 1 },
+
     isActive: { type: Boolean, default: true },
 
-    // modules enabled for this tenant/company
-    enabledModules: { type: [String], default: [] }, // AppModule[]
-
-    // optional: for multi-branch etc
     meta: { type: Schema.Types.Mixed, default: {} },
   },
   { timestamps: true }
 );
 
-CompanySchema.index({ name: 1 });
+CompanySchema.index({ businessName: 1 });
+CompanySchema.index({ isActive: 1 });
 
 export type CompanyDoc = InferSchemaType<typeof CompanySchema>;
 export default mongoose.models.Company || mongoose.model("Company", CompanySchema);

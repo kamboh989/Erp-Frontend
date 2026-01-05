@@ -1,41 +1,41 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { NextRequest, NextResponse } from "next/server";
 
-const COOKIE_NAME = "erp_token";
-
-async function getSession(req: NextRequest) {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  if (!token) return null;
-
-  const secret = process.env.JWT_SECRET;
-  if (!secret) return null;
-
-  try {
-    const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
-    return payload as any;
-  } catch {
-    return null;
-  }
+function prompt() {
+  const res = new NextResponse("Auth required", { status: 401 });
+  res.headers.set("WWW-Authenticate", 'Basic realm="Super Admin"');
+  return res;
 }
 
-export async function middleware(req: NextRequest) {
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const isSuperAdminRoute =
-    pathname.startsWith("/super-admin") || pathname.startsWith("/api/super-admin");
-
-  if (!isSuperAdminRoute) return NextResponse.next();
-
-  const session = await getSession(req);
-  if (!session) return NextResponse.redirect(new URL("/", req.url));
-
-  if (session.role !== "SUPER_ADMIN") {
-    return NextResponse.redirect(new URL("/", req.url));
+  // only protect /super-admin (and nested)
+  if (!pathname.startsWith("/super-admin")) {
+    return NextResponse.next();
   }
+
+  const auth = req.headers.get("authorization");
+  if (!auth?.startsWith("Basic ")) return prompt();
+
+  const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
+  const idx = decoded.indexOf(":");
+  if (idx === -1) return prompt();
+
+  const email = decoded.slice(0, idx);
+  const pass = decoded.slice(idx + 1);
+
+  const envEmail = process.env.SEED_SUPER_EMAIL;
+  const envPass = process.env.SEED_SUPER_PASS;
+
+  if (!envEmail || !envPass) {
+    return new NextResponse("Missing SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASS in env", { status: 500 });
+  }
+
+  if (email !== envEmail || pass !== envPass) return prompt();
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/super-admin/:path*", "/api/super-admin/:path*"],
+  matcher: ["/super-admin/:path*"],
 };

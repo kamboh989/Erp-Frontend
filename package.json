@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:super": "node scripts/seed-super-admin.js"
+    "seed:superadmin": "node scripts/seed-superadmin.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -24,7 +24,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "^20",
+    "@types/node": "^20.19.27",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

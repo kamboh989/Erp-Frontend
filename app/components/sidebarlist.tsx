@@ -1,4 +1,5 @@
 'use client';
+
 import Link from 'next/link';
 import {
   ChevronDown,
@@ -29,7 +30,7 @@ type MenuItem = {
   label: string;
   href?: string;
   icon?: any;
-  module?: ModuleKey;          // ✅ new
+  module?: ModuleKey;
   children?: MenuItem[];
 };
 
@@ -69,44 +70,72 @@ export default function SidebarList() {
     ERP: true,
   });
 
-  // ✅ session state
+  // 👇 NEVER null now (important)
   const [allowedSet, setAllowedSet] = useState<Set<string>>(new Set());
 
+  const [loaded, setLoaded] = useState(false);
+
   useEffect(() => {
+    let mounted = true;
+
     (async () => {
-      const me = await fetch('/api/auth/me', { cache: 'no-store' }).then(r => r.json());
-      const allowed: string[] = me?.session?.allowedModules || [];
-      setAllowedSet(new Set(allowed));
+      try {
+        const me = await fetch('/api/auth/me', {
+          cache: 'no-store',
+          credentials: 'include',
+        }).then(r => r.json());
+
+        const allowed: string[] = me?.session?.allowedModules || [];
+
+        // Dashboard always allowed
+        if (!allowed.includes('DASHBOARD')) {
+          allowed.push('DASHBOARD');
+        }
+
+        if (mounted) {
+          setAllowedSet(new Set(allowed));
+          setLoaded(true);
+        }
+      } catch {
+        if (mounted) {
+          setAllowedSet(new Set(['DASHBOARD']));
+          setLoaded(true);
+        }
+      }
     })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const toggleMenu = (label: string) => {
-    setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
-  };
-
-  // ✅ Filter MENU based on allowedModules
+  // ✅ useMemo ALWAYS runs (no condition)
   const filteredMenu = useMemo(() => {
-    // If session not loaded yet -> you can show nothing or skeleton
-    // Here we show only when loaded. If allowedSet empty, it may be legit too.
+    if (!loaded) return [];
+
     const filterItem = (item: MenuItem): MenuItem | null => {
       if (item.children?.length) {
         const kids = item.children
           .map(filterItem)
           .filter(Boolean) as MenuItem[];
 
-        // group ko tabhi show karo jab koi child allowed ho
         if (kids.length === 0) return null;
-
         return { ...item, children: kids };
       }
 
-      // leaf item
       if (!item.module) return null;
       return allowedSet.has(item.module) ? item : null;
     };
 
     return MENU.map(filterItem).filter(Boolean) as MenuItem[];
-  }, [allowedSet]);
+  }, [allowedSet, loaded]);
+
+  const toggleMenu = (label: string) => {
+    setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  // 🔹 UI SAME, just safe empty render
+  if (!loaded) return null;
 
   const base3D = 'transition-all duration-300 ease-out transform rounded';
   const hover3D =
@@ -130,8 +159,8 @@ export default function SidebarList() {
                     ${base3D} ${hover3D}`}
                 >
                   <div className="flex items-center gap-2">
-                    <Icon size={18} className="text-gray-500 " />
-                    <span className='font-semibold text-gray-800'>{item.label}</span>
+                    <Icon size={18} className="text-gray-500" />
+                    <span className="font-semibold text-gray-800">{item.label}</span>
                   </div>
 
                   <ChevronDown
