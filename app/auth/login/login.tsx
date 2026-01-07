@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, Building2 } from 'lucide-react';
 import { useRouter } from "next/navigation";
 
 interface VideoBackgroundProps {
@@ -36,6 +36,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({ videoUrl }) =>
 export const LoginForm: React.FC = () => {
   const router = useRouter();
 
+  const [companyEmail, setCompanyEmail] = useState(''); // ✅ NEW
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,12 +48,11 @@ export const LoginForm: React.FC = () => {
     setLoading(true);
 
     try {
-      // ✅ COMPANY LOGIN API
       const r = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // ⭐ VERY IMPORTANT
-        body: JSON.stringify({ email, password }),
+        credentials: "include",
+        body: JSON.stringify({ companyEmail, email, password }), // ✅ UPDATED
       });
 
       const j = await r.json();
@@ -61,7 +61,6 @@ export const LoginForm: React.FC = () => {
         return;
       }
 
-      // ✅ CHECK SESSION (cookie saved?)
       const me = await fetch("/api/auth/me", {
         method: "GET",
         cache: "no-store",
@@ -73,10 +72,10 @@ export const LoginForm: React.FC = () => {
         return;
       }
 
-      // ✅ SUCCESS → DASHBOARD
+      sessionStorage.setItem("justLoggedIn", "1");
+
       router.replace("/dashboard");
       router.refresh();
-
     } catch {
       setError("Network error. Try again.");
     } finally {
@@ -88,7 +87,7 @@ export const LoginForm: React.FC = () => {
     <div className="w-full max-w-md p-8 bg-black/50 border border-white/10 rounded-2xl relative z-20">
       <h2 className="text-3xl font-bold text-white text-center mb-6">Sign In</h2>
       <p className="text-white/70 text-center text-sm mb-6">
-        Enter your email and password to access your account
+        Enter your company email, user email and password to access your account
       </p>
 
       {error && (
@@ -98,12 +97,25 @@ export const LoginForm: React.FC = () => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Email */}
+        {/* ✅ Company Email */}
+        <div className="relative">
+          <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60" size={18} />
+          <input
+            type="email"
+            placeholder="Company Email"
+            value={companyEmail}
+            onChange={(e) => setCompanyEmail(e.target.value)}
+            required
+            className="w-full pl-10 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/60 focus:outline-none focus:border-blue-500"
+          />
+        </div>
+
+        {/* User Email */}
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60" size={18} />
           <input
             type="email"
-            placeholder="Email"
+            placeholder="User Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required

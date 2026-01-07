@@ -6,12 +6,9 @@ import type { AppModule } from "@/types/modules";
 
 type Company = {
   _id: string;
-  businessName: string;
+  companyName: string;
   email: string;
   phone?: string;
-  planDays: number;
-  planStartsAt: string;
-  planExpiresAt: string;
   enabledModules: AppModule[];
   maxUsers: number;
   isActive: boolean;
@@ -34,23 +31,15 @@ const btnGhost = "rounded-xl bg-white/10 hover:bg-white/15 px-4 py-2 text-sm";
 const btnDanger = "rounded-xl bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-semibold";
 const input = "rounded-xl bg-black/30 border border-white/10 px-3 py-2 outline-none focus:border-blue-500";
 
-function fmtDate(s?: string) {
-  if (!s) return "—";
-  const d = new Date(s);
-  if (isNaN(d.getTime())) return "—";
-  return d.toLocaleString();
-}
-
 export default function SuperAdminCompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
 
   // create form
-  const [businessName, setBusinessName] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
-  const [planDays, setPlanDays] = useState<number>(30);
   const [maxUsers, setMaxUsers] = useState<number>(3);
   const [enabledModules, setEnabledModules] = useState<AppModule[]>(["DASHBOARD"]);
 
@@ -64,7 +53,7 @@ export default function SuperAdminCompaniesPage() {
   const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
-  // delete loading (avoid double click)
+  // delete loading
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function loadCompanies() {
@@ -83,25 +72,21 @@ export default function SuperAdminCompaniesPage() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    loadCompanies();
-  }, []);
+  useEffect(() => { loadCompanies(); }, []);
 
   async function createCompany() {
-    if (!businessName.trim()) return alert("Business name required");
+    if (!companyName.trim()) return alert("Company name required");
     if (!email.trim()) return alert("Email required");
     if (!password.trim()) return alert("Password required");
-    if (!planDays || planDays < 1) return alert("Plan days must be >= 1");
 
     const r = await fetch("/api/super-admin/companies", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        businessName: businessName.trim(),
+        companyName: companyName.trim(),
         email: email.trim(),
         password,
         phone: phone.trim(),
-        planDays,
         enabledModules,
         maxUsers,
       }),
@@ -118,11 +103,10 @@ export default function SuperAdminCompaniesPage() {
 
     if (j.company) setCompanies((prev) => [j.company, ...prev]);
 
-    setBusinessName("");
+    setCompanyName("");
     setEmail("");
     setPassword("");
     setPhone("");
-    setPlanDays(30);
     setMaxUsers(3);
     setEnabledModules(["DASHBOARD"]);
   }
@@ -145,17 +129,14 @@ export default function SuperAdminCompaniesPage() {
     if (!editCompany) return;
 
     const payload = {
-      businessName: editCompany.businessName,
+      companyName: editCompany.companyName,
       email: editCompany.email,
       phone: editCompany.phone,
-      planDays: editCompany.planDays,
       maxUsers: editCompany.maxUsers,
       enabledModules: editCompany.enabledModules,
       isActive: editCompany.isActive,
       ...(editPassword.trim() ? { password: editPassword.trim() } : {}),
     };
-
-    console.log("PATCH payload =>", payload);
 
     const r = await fetch(`/api/super-admin/companies/${editCompany._id}`, {
       method: "PATCH",
@@ -164,25 +145,22 @@ export default function SuperAdminCompaniesPage() {
     });
 
     const text = await r.text();
-    console.log("PATCH status =>", r.status, text);
-
     let j: any = {};
     try { j = JSON.parse(text); } catch {}
 
-    if (!r.ok) {
-      alert(j?.error || `Failed (${r.status})`);
-      return;
-    }
+    if (!r.ok) return alert(j?.error || `Failed (${r.status})`);
 
     setCompanies((prev) =>
       prev.map((x) => (x._id === editCompany._id ? (j.company as Company) : x))
     );
+
+    // ✅ re-fetch to ensure list + users sync
+    await loadCompanies();
     closeEdit();
   }
 
   async function toggleCompanyActive(c: Company) {
     const payload = { isActive: !c.isActive };
-    console.log("toggle company =>", c._id, payload);
 
     const r = await fetch(`/api/super-admin/companies/${c._id}`, {
       method: "PATCH",
@@ -191,17 +169,13 @@ export default function SuperAdminCompaniesPage() {
     });
 
     const text = await r.text();
-    console.log("toggle status =>", r.status, text);
-
     let j: any = {};
     try { j = JSON.parse(text); } catch {}
 
-    if (!r.ok) {
-      alert(j?.error || `Failed (${r.status})`);
-      return;
-    }
+    if (!r.ok) return alert(j?.error || `Failed (${r.status})`);
 
     setCompanies((prev) => prev.map((x) => (x._id === c._id ? j.company : x)));
+    await loadCompanies();
   }
 
   async function strictDeleteCompany(c: Company) {
@@ -224,17 +198,11 @@ export default function SuperAdminCompaniesPage() {
       });
 
       const text = await r.text();
-      console.log("DELETE status =>", r.status, text);
-
       let j: any = {};
       try { j = JSON.parse(text); } catch {}
 
-      if (!r.ok) {
-        alert(j?.error || `Delete failed (${r.status})`);
-        return;
-      }
+      if (!r.ok) return alert(j?.error || `Delete failed (${r.status})`);
 
-      // ✅ UI cleanup (important)
       setCompanies((prev) => prev.filter((x) => x._id !== c._id));
 
       if (openUsersFor === c._id) {
@@ -242,10 +210,8 @@ export default function SuperAdminCompaniesPage() {
         setCompanyUsers([]);
       }
 
-      // if edit modal open for same company, close it
       if (editCompany?._id === c._id) closeEdit();
 
-      // optional: re-fetch list to be 100% sure
       await loadCompanies();
     } finally {
       setDeletingId(null);
@@ -260,7 +226,6 @@ export default function SuperAdminCompaniesPage() {
     try { j = JSON.parse(text); } catch {}
 
     if (!r.ok) {
-      console.log("GET users failed:", r.status, text);
       alert(j?.error || `Failed (${r.status})`);
       setUsersLoading(false);
       return;
@@ -272,7 +237,6 @@ export default function SuperAdminCompaniesPage() {
 
   async function toggleUserActive(companyId: string, user: CompanyUser) {
     const payload = { isActive: !user.isActive };
-    console.log("toggle user =>", companyId, user._id, payload);
 
     const r = await fetch(`/api/super-admin/companies/${companyId}/users/${user._id}`, {
       method: "PATCH",
@@ -281,21 +245,16 @@ export default function SuperAdminCompaniesPage() {
     });
 
     const text = await r.text();
-    console.log("toggle user status =>", r.status, text);
-
     let j: any = {};
     try { j = JSON.parse(text); } catch {}
 
-    if (!r.ok) {
-      alert(j?.error || `Failed (${r.status})`);
-      return;
-    }
+    if (!r.ok) return alert(j?.error || `Failed (${r.status})`);
 
     setCompanyUsers((prev) => prev.map((u) => (u._id === user._id ? j.user : u)));
   }
 
   const sorted = useMemo(() => {
-    return [...companies].sort((a, b) => a.businessName.localeCompare(b.businessName));
+    return [...companies].sort((a, b) => a.companyName.localeCompare(b.companyName));
   }, [companies]);
 
   return (
@@ -305,7 +264,7 @@ export default function SuperAdminCompaniesPage() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-2xl font-bold">Super Admin</div>
-            <div className="text-white/60 text-sm">Companies + Plans + Modules + Users</div>
+            <div className="text-white/60 text-sm">Companies + Modules + Users</div>
           </div>
           <button className={btnGhost} onClick={loadCompanies}>
             Refresh
@@ -328,8 +287,8 @@ export default function SuperAdminCompaniesPage() {
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="grid gap-3">
-              <label className="text-sm text-white/70">Business Name</label>
-              <input className={input} value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+              <label className="text-sm text-white/70">Company Name</label>
+              <input className={input} value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
 
               <label className="text-sm text-white/70">Owner Email</label>
               <input className={input} value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -340,19 +299,12 @@ export default function SuperAdminCompaniesPage() {
               <label className="text-sm text-white/70">Phone</label>
               <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-2">
-                  <label className="text-sm text-white/70">Plan Days</label>
-                  <input className={input} type="number" min={1} value={planDays} onChange={(e) => setPlanDays(Number(e.target.value))} />
+              <div className="grid gap-2">
+                <label className="text-sm text-white/70">Max Users</label>
+                <input className={input} type="number" min={1} value={maxUsers} onChange={(e) => setMaxUsers(Number(e.target.value))} />
+                <div className="text-xs text-white/50">
+                  Max users limit enforce future me user-create endpoint pe hoga.
                 </div>
-                <div className="grid gap-2">
-                  <label className="text-sm text-white/70">Max Users</label>
-                  <input className={input} type="number" min={1} value={maxUsers} onChange={(e) => setMaxUsers(Number(e.target.value))} />
-                </div>
-              </div>
-
-              <div className="text-xs text-white/50">
-                Note: Password DB me hash me save hoga (secure). Super Admin reset/update kar sakta hai.
               </div>
             </div>
 
@@ -381,9 +333,8 @@ export default function SuperAdminCompaniesPage() {
               <table className="w-full text-sm">
                 <thead className="text-white/60">
                   <tr className="border-b border-white/10">
-                    <th className="py-3 text-left">Business</th>
+                    <th className="py-3 text-left">Company</th>
                     <th className="py-3 text-left">Email / Phone</th>
-                    <th className="py-3 text-left">Plan</th>
                     <th className="py-3 text-left">Users</th>
                     <th className="py-3 text-left">Modules</th>
                     <th className="py-3 text-left">Status</th>
@@ -395,20 +346,30 @@ export default function SuperAdminCompaniesPage() {
                   {sorted.map((c) => (
                     <Fragment key={c._id}>
                       <tr className="border-b border-white/5 hover:bg-white/5">
-                        <td className="py-3 font-semibold">{c.businessName}</td>
+                        <td className="py-3 font-semibold">{c.companyName}</td>
                         <td className="py-3">
                           <div className="text-white/90">{c.email}</div>
                           <div className="text-white/60 text-xs">{c.phone || "—"}</div>
                         </td>
-                        <td className="py-3 text-white/80">
-                          <div>{c.planDays} days</div>
-                          <div className="text-white/60 text-xs">Expire: {fmtDate(c.planExpiresAt)}</div>
-                        </td>
                         <td className="py-3 text-white/80">{c.maxUsers}</td>
-                        <td className="py-3 text-white/70">
-                          {(c.enabledModules || []).slice(0, 3).join(", ")}
-                          {(c.enabledModules || []).length > 3 ? "…" : ""}
+
+                        {/* ✅ modules chips (no hide) */}
+                        <td className="py-3">
+                          <div className="flex flex-wrap gap-1 max-w-[520px]">
+                            {(c.enabledModules || []).map((m) => (
+                              <span
+                                key={m}
+                                className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10"
+                              >
+                                {m}
+                              </span>
+                            ))}
+                            {(c.enabledModules || []).length === 0 && (
+                              <span className="text-xs text-white/50">No modules</span>
+                            )}
+                          </div>
                         </td>
+
                         <td className="py-3">
                           <span
                             className={`text-xs px-2 py-1 rounded-full border ${
@@ -456,9 +417,9 @@ export default function SuperAdminCompaniesPage() {
 
                       {openUsersFor === c._id && (
                         <tr className="border-b border-white/10 bg-black/20">
-                          <td colSpan={7} className="py-4">
+                          <td colSpan={6} className="py-4">
                             <div className="flex items-center justify-between mb-3">
-                              <div className="font-semibold">Users of {c.businessName}</div>
+                              <div className="font-semibold">Users of {c.companyName}</div>
                               <button className={btnGhost} onClick={() => loadCompanyUsers(c._id)}>
                                 Refresh Users
                               </button>
@@ -510,7 +471,9 @@ export default function SuperAdminCompaniesPage() {
                                     ))}
                                     {companyUsers.length === 0 && (
                                       <tr>
-                                        <td colSpan={5} className="py-4 text-white/60">No users found.</td>
+                                        <td colSpan={5} className="py-4 text-white/60">
+                                          No users found. (Owner auto-created; future me company admin users add honge.)
+                                        </td>
                                       </tr>
                                     )}
                                   </tbody>
@@ -525,7 +488,7 @@ export default function SuperAdminCompaniesPage() {
 
                   {sorted.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-6 text-white/60">No companies found.</td>
+                      <td colSpan={6} className="py-6 text-white/60">No companies found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -545,8 +508,8 @@ export default function SuperAdminCompaniesPage() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="grid gap-3">
-                  <label className="text-sm text-white/70">Business Name</label>
-                  <input className={input} value={editCompany.businessName} onChange={(e) => setEditCompany({ ...editCompany, businessName: e.target.value })} />
+                  <label className="text-sm text-white/70">Company Name</label>
+                  <input className={input} value={editCompany.companyName} onChange={(e) => setEditCompany({ ...editCompany, companyName: e.target.value })} />
 
                   <label className="text-sm text-white/70">Email (Owner Login)</label>
                   <input className={input} value={editCompany.email} onChange={(e) => setEditCompany({ ...editCompany, email: e.target.value })} />
@@ -558,10 +521,6 @@ export default function SuperAdminCompaniesPage() {
                   <input className={input} value={editCompany.phone || ""} onChange={(e) => setEditCompany({ ...editCompany, phone: e.target.value })} />
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-2">
-                      <label className="text-sm text-white/70">Plan Days</label>
-                      <input className={input} type="number" min={1} value={editCompany.planDays} onChange={(e) => setEditCompany({ ...editCompany, planDays: Number(e.target.value) })} />
-                    </div>
                     <div className="grid gap-2">
                       <label className="text-sm text-white/70">Max Users</label>
                       <input className={input} type="number" min={1} value={editCompany.maxUsers} onChange={(e) => setEditCompany({ ...editCompany, maxUsers: Number(e.target.value) })} />
@@ -590,7 +549,7 @@ export default function SuperAdminCompaniesPage() {
                   </div>
 
                   <div className="text-xs text-white/50 mt-2">
-                    Tip: Modules change karne se sidebar/pages access change hoga. Direct URL pe bhi API guard se block hoga.
+                    Modules change karne se CompanyUser.allowedModules auto-sync hoga (PATCH backend me).
                   </div>
                 </div>
               </div>
@@ -602,5 +561,3 @@ export default function SuperAdminCompaniesPage() {
     </div>
   );
 }
-
-

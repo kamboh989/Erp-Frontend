@@ -9,7 +9,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   await requireSuperAdmin(req);
   await connectDB();
 
-  const { id, userId } = await ctx.params; // ✅ Next 15 fix
+  const { id, userId } = await ctx.params;
   const { isActive } = await req.json();
 
   const user = await CompanyUser.findOneAndUpdate(
@@ -20,10 +20,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     .select("-passwordHash")
     .lean();
 
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+  if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   return NextResponse.json({ user });
 }
-

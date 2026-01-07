@@ -6,7 +6,12 @@ const CompanyUserSchema = new Schema(
 
     email: { type: String, required: true, lowercase: true, trim: true },
     passwordHash: { type: String, required: true },
+
     name: { type: String, trim: true },
+    phone: { type: String, trim: true },
+
+    role: { type: String, enum: ["ADMIN", "STAFF"], required: false },
+
 
     allowedModules: { type: [String], default: [] },
 
@@ -16,7 +21,6 @@ const CompanyUserSchema = new Schema(
   { timestamps: true }
 );
 
-// same email different companies? allow (multi-tenant) -> unique per company
 CompanyUserSchema.index({ companyId: 1, email: 1 }, { unique: true });
 CompanyUserSchema.index({ companyId: 1, createdAt: -1 });
 

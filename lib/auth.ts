@@ -13,22 +13,23 @@ function getJwtSecret() {
   return s;
 }
 
+export type CompanyRole = "ADMIN" | "STAFF";
+
 export type CompanySession = {
   userId: string;
   companyId: string;
   email: string;
+  name?: string;
+  role: CompanyRole;
+  isOwner: boolean;
   allowedModules: string[];
 };
 
-export type AuthErrorCode =
-  | "UNAUTHORIZED"
-  | "PLAN_EXPIRED"
-  | "NO_MODULE_ACCESS";
+export type AuthErrorCode = "UNAUTHORIZED" | "NO_MODULE_ACCESS" | "FORBIDDEN";
 
 export class AuthError extends Error {
   code: AuthErrorCode;
   status: number;
-
   constructor(code: AuthErrorCode, status: number, message?: string) {
     super(message || code);
     this.code = code;
@@ -36,10 +37,8 @@ export class AuthError extends Error {
   }
 }
 
-/** ✅ Set company session cookie */
 export function setCompanyCookie(res: NextResponse, payload: CompanySession) {
   const secret = getJwtSecret();
-
   const token = jwt.sign(payload, secret, { expiresIn: "7d" });
 
   res.cookies.set({
@@ -53,7 +52,6 @@ export function setCompanyCookie(res: NextResponse, payload: CompanySession) {
   });
 }
 
-/** ✅ Clear company session cookie */
 export function clearCompanyCookie(res: NextResponse) {
   res.cookies.set({
     name: COOKIE_NAME,
@@ -66,7 +64,6 @@ export function clearCompanyCookie(res: NextResponse) {
   });
 }
 
-/** ✅ Read session from request cookie */
 export function readCompanyCookie(req: NextRequest): CompanySession | null {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   if (!token) return null;
@@ -79,12 +76,7 @@ export function readCompanyCookie(req: NextRequest): CompanySession | null {
   }
 }
 
-/** ✅ For pages/layouts: returns session or null (no throw) */
-export function getCompanySessionOrNull(req: NextRequest) {
-  return readCompanyCookie(req);
-}
-
-/** ✅ Require auth + validate company/user/plan (throws AuthError) */
+/** ✅ Require auth + validate company/user */
 export async function requireCompanyAuth(req: NextRequest) {
   const session = readCompanyCookie(req);
   if (!session) throw new AuthError("UNAUTHORIZED", 401);
@@ -92,40 +84,45 @@ export async function requireCompanyAuth(req: NextRequest) {
   await connectDB();
 
   const company = await Company.findById(session.companyId)
-    .select("isActive planExpiresAt")
+    .select("isActive enabledModules")
     .lean();
-
   if (!company?.isActive) throw new AuthError("UNAUTHORIZED", 401);
 
-  const expired =
-    company.planExpiresAt &&
-    new Date(company.planExpiresAt).getTime() < Date.now();
-
-  if (expired) throw new AuthError("PLAN_EXPIRED", 403, "Plan expired");
-
   const user = await CompanyUser.findById(session.userId)
-    .select("isActive companyId")
+    .select("isActive companyId email name role isOwner allowedModules")
     .lean();
 
-  // user missing / inactive
   if (!user?.isActive) throw new AuthError("UNAUTHORIZED", 401);
+  if (String(user.companyId) !== String(session.companyId)) throw new AuthError("UNAUTHORIZED", 401);
 
-  // extra safety: ensure user belongs to same company
-  if (String(user.companyId) !== String(session.companyId)) {
-    throw new AuthError("UNAUTHORIZED", 401);
-  }
+  // ✅ FINAL allowed = user.allowedModules ∩ company.enabledModules
+  const enabled = new Set<string>((company.enabledModules || []) as string[]);
+  const finalAllowed = ((user.allowedModules || []) as string[]).filter((m) => enabled.has(m));
 
-  return session;
+  // ✅ Return fresh session-like object (DB truth)
+  return {
+    userId: String(user._id),
+    companyId: String(user.companyId),
+    email: user.email,
+    name: user.name || "",
+    role: (user.role || "STAFF") as CompanyRole,
+    isOwner: Boolean(user.isOwner),
+    allowedModules: finalAllowed,
+  } satisfies CompanySession;
 }
 
-/** ✅ Require module access for a route/page (throws AuthError) */
 export function requireModule(session: CompanySession, moduleKey: string) {
   if (!session.allowedModules?.includes(moduleKey)) {
     throw new AuthError("NO_MODULE_ACCESS", 403, "No module access");
   }
 }
 
-/** ✅ Helper: convert AuthError to response (use in route.ts catch) */
+export function requireCompanyAdmin(session: CompanySession) {
+  if (!(session.isOwner || session.role === "ADMIN")) {
+    throw new AuthError("FORBIDDEN", 403, "Admin only");
+  }
+}
+
 export function authErrorResponse(err: unknown) {
   if (err instanceof AuthError) {
     return NextResponse.json({ error: err.code }, { status: err.status });

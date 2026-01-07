@@ -11,29 +11,33 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   await requireSuperAdmin(req);
   await connectDB();
 
-  const { id } = await ctx.params; // ✅ Next 15 fix
+  const { id } = await ctx.params;
   const body = await req.json();
 
   const company = await Company.findById(id);
   if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
-  // planDays -> recalc from now
-  if (body.planDays !== undefined) {
-    const now = new Date();
-    const days = Number(body.planDays);
-    const expires = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
-    company.planDays = days;
-    company.planStartsAt = now;
-    company.planExpiresAt = expires;
+  if (body.companyName !== undefined || body.businessName !== undefined) {
+    const nextName = String(body.companyName ?? body.businessName).trim();
+    company.companyName = nextName;
   }
 
-  if (body.businessName !== undefined) company.businessName = String(body.businessName).trim();
   if (body.phone !== undefined) company.phone = String(body.phone).trim();
   if (body.maxUsers !== undefined) company.maxUsers = Number(body.maxUsers);
-  if (body.enabledModules !== undefined) company.enabledModules = body.enabledModules;
   if (body.isActive !== undefined) company.isActive = Boolean(body.isActive);
 
-  // email update (unique) + owner email update
+  // ✅ enabledModules update + sync to ALL users
+  if (body.enabledModules !== undefined) {
+    const mods = Array.isArray(body.enabledModules) ? body.enabledModules : [];
+    company.enabledModules = mods;
+
+    await CompanyUser.updateMany(
+      { companyId: company._id },
+      { $set: { allowedModules: mods } }
+    );
+  }
+
+  // ✅ email update (unique) + update owner email
   if (body.email !== undefined) {
     const newEmail = String(body.email).toLowerCase().trim();
     const clash = await Company.findOne({ email: newEmail, _id: { $ne: company._id } }).lean();
@@ -46,7 +50,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     );
   }
 
-  // password reset -> owner password update
+  // ✅ password reset -> owner password update
   if (body.password !== undefined && String(body.password).length >= 4) {
     const passwordHash = await bcrypt.hash(String(body.password), 10);
     await CompanyUser.updateOne(
@@ -63,7 +67,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   await requireSuperAdmin(req);
   await connectDB();
 
-  const { id } = await ctx.params; // ✅ Next 15 fix
+  const { id } = await ctx.params;
   const { email, password } = await req.json();
 
   const company = await Company.findById(id).lean();

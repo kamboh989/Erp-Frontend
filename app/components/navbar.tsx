@@ -1,38 +1,41 @@
-'use client';
-import { Layout } from 'lucide-react';
+"use client";
 
-interface NavbarProps {
-  toggleSidebar: () => void;
-}
+import { Bell, Layout } from "lucide-react";
+import { useEffect, useState } from "react";
+import UserMenu from "./usermenu";
 
-export default function Navbar({ toggleSidebar }: NavbarProps) {
+export default function Navbar({ toggleSidebar }: { toggleSidebar: () => void }) {
+  const [me, setMe] = useState<any>(null);
+
+  useEffect(() => {
+    (async () => {
+      const r = await fetch("/api/auth/me", { cache: "no-store", credentials: "include" });
+      const j = await r.json();
+      setMe(j?.session || null);
+    })();
+  }, []);
+
+  const name = me?.name || "User";
+  const role = me?.isOwner ? "Owner" : (me?.role === "ADMIN" ? "Admin" : "Staff");
+
   return (
-    <nav className="shadow-md h-16 flex items-center px-6 justify-between w-full">
-      {/* Left: Sidebar toggle (hidden on mobile since sidebar is hidden) */}
+    <nav className="shadow-md h-16 flex items-center px-6 justify-between w-full bg-white">
       <button
-        className="p-2 rounded hover:bg-gray-200 transition text-gray-800 "
+        className="p-2 rounded hover:bg-gray-100 transition text-gray-700"
         onClick={toggleSidebar}
+        type="button"
       >
         <Layout size={20} />
       </button>
 
-      {/* Center / Company Logo */}
-      <div className="text-xl font-bold">AIVerse</div>
+      <div />
 
-      {/* Right: User / Notification */}
-      <div className="flex items-center space-x-4">
-        <button className="relative">
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 rounded-full">1</span>
-          🔔
+      <div className="flex items-center gap-4">
+        <button type="button" className="relative p-2 rounded hover:bg-gray-100 transition">
+          <Bell size={20} className="text-gray-600" />
         </button>
-        <div className="flex items-center space-x-2">
-          <img
-            src="/profile.png"
-            alt="Admin"
-            className="w-8 h-8 rounded-full"
-          />
-          <span>Admin</span>
-        </div>
+
+        <UserMenu name={name} role={role} />
       </div>
     </nav>
   );

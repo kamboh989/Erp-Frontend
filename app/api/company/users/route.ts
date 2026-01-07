@@ -1,9 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
-import Company from "@/models/Company";
 import CompanyUser from "@/models/CompanyUser";
+import Company from "@/models/Company";
 import { requireCompanyAuth } from "@/lib/auth";
+
+function intersectAllowed(userMods: string[], enabledMods: string[]) {
+  const set = new Set(enabledMods || []);
+  return (userMods || []).filter((m) => set.has(m));
+}
 
 export async function GET(req: NextRequest) {
   const session = await requireCompanyAuth(req);
@@ -19,10 +24,10 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await requireCompanyAuth(req);
-  const { email, password, name, allowedModules = [] } = await req.json();
+  const { email, password, name, phone, role, allowedModules = [] } = await req.json();
 
-  if (!email || !password) {
-    return NextResponse.json({ error: "email/password required" }, { status: 400 });
+  if (!email || !password || !name) {
+    return NextResponse.json({ error: "name/email/password required" }, { status: 400 });
   }
 
   await connectDB();
@@ -30,26 +35,36 @@ export async function POST(req: NextRequest) {
   const company = await Company.findById(session.companyId).select("maxUsers enabledModules").lean();
   if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
-  const totalUsers = await CompanyUser.countDocuments({ companyId: session.companyId, isActive: true });
-  if (totalUsers >= (company.maxUsers || 1)) {
-    return NextResponse.json({ error: "User limit reached. Buy more plan." }, { status: 403 });
+  const count = await CompanyUser.countDocuments({ companyId: session.companyId });
+
+  if (count >= Number(company.maxUsers || 1)) {
+    return NextResponse.json({ error: "User limit reached" }, { status: 403 });
   }
 
-  // Ensure allowedModules ⊆ company.enabledModules
-  const enabled = new Set(company.enabledModules || []);
-  const safeAllowed = (allowedModules as string[]).filter((m) => enabled.has(m));
+  // ✅ staff cannot create ADMIN
+  const finalRole = (session.isOwner || session.role === "ADMIN")
+    ? (role === "ADMIN" ? "ADMIN" : "STAFF")
+    : "STAFF";
+
+  const finalModules = intersectAllowed(
+    Array.isArray(allowedModules) ? allowedModules : [],
+    (company.enabledModules || []) as string[]
+  );
 
   const passwordHash = await bcrypt.hash(String(password), 10);
 
   const user = await CompanyUser.create({
     companyId: session.companyId,
-    email: String(email).toLowerCase(),
+    email: String(email).toLowerCase().trim(),
     passwordHash,
-    name: name?.trim() || "",
-    allowedModules: safeAllowed,
-    isOwner: false,
+    name: String(name).trim(),
+    phone: String(phone || "").trim(),
+    role: finalRole,
+    allowedModules: finalModules,
     isActive: true,
+    isOwner: false,
   });
 
-  return NextResponse.json({ user: { id: String(user._id), email: user.email } }, { status: 201 });
+  const safe = await CompanyUser.findById(user._id).select("-passwordHash").lean();
+  return NextResponse.json({ user: safe }, { status: 201 });
 }

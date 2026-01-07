@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   await requireSuperAdmin(req);
   await connectDB();
 
-  const { id } = await ctx.params; // ✅ Next 15 fix
+  const { id } = await ctx.params;
 
   const users = await CompanyUser.find({ companyId: id })
     .select("-passwordHash")
@@ -18,4 +18,3 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
   return NextResponse.json({ users });
 }
-

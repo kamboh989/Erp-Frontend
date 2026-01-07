@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
+import Link from "next/link";
 import {
   ChevronDown,
   LayoutDashboard,
@@ -15,64 +15,65 @@ import {
   Wallet,
   BarChart3,
   Settings,
-} from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { usePathname } from 'next/navigation';
+  Shield,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 type ModuleKey =
-  | 'DASHBOARD'
-  | 'CRM_LEADS' | 'CRM_CUSTOMERS' | 'CRM_DEALS'
-  | 'ERP_SALES' | 'ERP_INVENTORY' | 'ERP_PURCHASING' | 'ERP_ACCOUNTS'
-  | 'REPORTS'
-  | 'SETTINGS';
+  | "DASHBOARD"
+  | "CRM_LEADS" | "CRM_CUSTOMERS" | "CRM_DEALS"
+  | "ERP_SALES" | "ERP_INVENTORY" | "ERP_PURCHASING" | "ERP_ACCOUNTS"
+  | "REPORTS"
+  | "SETTINGS";
 
 type MenuItem = {
   label: string;
   href?: string;
   icon?: any;
   module?: ModuleKey;
+  adminOnly?: boolean;
   children?: MenuItem[];
 };
 
 const MENU: MenuItem[] = [
-  { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'DASHBOARD' },
+  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "DASHBOARD" },
 
   {
-    label: 'CRM',
+    label: "CRM",
     icon: Users,
     children: [
-      { label: 'Leads', href: '/crm/leads', icon: UserPlus, module: 'CRM_LEADS' },
-      { label: 'Customers', href: '/crm/customers', icon: UserCheck, module: 'CRM_CUSTOMERS' },
-      { label: 'Deals', href: '/crm/deals', icon: Handshake, module: 'CRM_DEALS' },
+      { label: "Leads", href: "/crm/leads", icon: UserPlus, module: "CRM_LEADS" },
+      { label: "Customers", href: "/crm/customers", icon: UserCheck, module: "CRM_CUSTOMERS" },
+      { label: "Deals", href: "/crm/deals", icon: Handshake, module: "CRM_DEALS" },
     ],
   },
 
   {
-    label: 'ERP',
+    label: "ERP",
     icon: Building2,
     children: [
-      { label: 'Sales', href: '/erp/sales', icon: ShoppingCart, module: 'ERP_SALES' },
-      { label: 'Inventory', href: '/erp/inventory', icon: Boxes, module: 'ERP_INVENTORY' },
-      { label: 'Purchasing', href: '/erp/purchasing', icon: ClipboardList, module: 'ERP_PURCHASING' },
-      { label: 'Accounts', href: '/erp/accounts', icon: Wallet, module: 'ERP_ACCOUNTS' },
+      { label: "Sales", href: "/erp/sales", icon: ShoppingCart, module: "ERP_SALES" },
+      { label: "Inventory", href: "/erp/inventory", icon: Boxes, module: "ERP_INVENTORY" },
+      { label: "Purchasing", href: "/erp/purchasing", icon: ClipboardList, module: "ERP_PURCHASING" },
+      { label: "Accounts", href: "/erp/accounts", icon: Wallet, module: "ERP_ACCOUNTS" },
     ],
   },
 
-  { label: 'Reports', href: '/reports', icon: BarChart3, module: 'REPORTS' },
-  { label: 'Settings', href: '/settings', icon: Settings, module: 'SETTINGS' },
+  { label: "Reports", href: "/reports", icon: BarChart3, module: "REPORTS" },
+  { label: "Settings", href: "/settings", icon: Settings, module: "SETTINGS" },
+
+  // ✅ Admin control (users management)
+  { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
 ];
 
 export default function SidebarList() {
   const pathname = usePathname();
+  const router = useRouter();
 
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
-    CRM: true,
-    ERP: true,
-  });
-
-  // 👇 NEVER null now (important)
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ CRM: true, ERP: true });
   const [allowedSet, setAllowedSet] = useState<Set<string>>(new Set());
-
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -80,72 +81,65 @@ export default function SidebarList() {
 
     (async () => {
       try {
-        const me = await fetch('/api/auth/me', {
-          cache: 'no-store',
-          credentials: 'include',
-        }).then(r => r.json());
+        const r = await fetch("/api/auth/me", { cache: "no-store", credentials: "include" });
+        const me = await r.json();
+        const session = me?.session;
 
-        const allowed: string[] = me?.session?.allowedModules || [];
-
-        // Dashboard always allowed
-        if (!allowed.includes('DASHBOARD')) {
-          allowed.push('DASHBOARD');
+        if (!session) {
+          if (mounted) setLoaded(true);
+          router.replace("/auth/login");
+          return;
         }
+
+        const fromApi: string[] = session?.allowedModules || [];
+        const allowed = Array.from(new Set(["DASHBOARD", ...fromApi]));
 
         if (mounted) {
           setAllowedSet(new Set(allowed));
+          setIsAdmin(Boolean(session?.isOwner) || session?.role === "ADMIN");
           setLoaded(true);
         }
       } catch {
-        if (mounted) {
-          setAllowedSet(new Set(['DASHBOARD']));
-          setLoaded(true);
-        }
+        if (mounted) setLoaded(true);
       }
     })();
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    return () => { mounted = false; };
+  }, [router]);
 
-  // ✅ useMemo ALWAYS runs (no condition)
   const filteredMenu = useMemo(() => {
     if (!loaded) return [];
 
     const filterItem = (item: MenuItem): MenuItem | null => {
-      if (item.children?.length) {
-        const kids = item.children
-          .map(filterItem)
-          .filter(Boolean) as MenuItem[];
+      if (item.adminOnly && !isAdmin) return null;
 
+      if (item.children?.length) {
+        const kids = item.children.map(filterItem).filter(Boolean) as MenuItem[];
         if (kids.length === 0) return null;
         return { ...item, children: kids };
       }
+
+      if (item.href && item.adminOnly) return item;
 
       if (!item.module) return null;
       return allowedSet.has(item.module) ? item : null;
     };
 
     return MENU.map(filterItem).filter(Boolean) as MenuItem[];
-  }, [allowedSet, loaded]);
+  }, [allowedSet, loaded, isAdmin]);
 
-  const toggleMenu = (label: string) => {
-    setOpenMenus(prev => ({ ...prev, [label]: !prev[label] }));
-  };
+  const toggleMenu = (label: string) => setOpenMenus((p) => ({ ...p, [label]: !p[label] }));
 
-  // 🔹 UI SAME, just safe empty render
   if (!loaded) return null;
 
-  const base3D = 'transition-all duration-300 ease-out transform rounded';
+  const base3D = "transition-all duration-300 ease-out transform rounded";
   const hover3D =
-    'hover:-translate-y-[1px] hover:shadow-lg hover:bg-gradient-to-r hover:from-zinc-100 hover:to-blue-100';
-  const active3D =
-    'bg-gradient-to-r from-zinc-100 to-blue-100 shadow-lg -translate-y-[1px]';
+    "hover:-translate-y-[1px] hover:shadow-lg hover:bg-gradient-to-r hover:from-zinc-100 hover:to-blue-100";
+  const active3D = "bg-gradient-to-r from-zinc-100 to-blue-100 shadow-lg -translate-y-[1px]";
 
   return (
     <ul className="space-y-2">
-      {filteredMenu.map(item => {
+      {filteredMenu.map((item) => {
         const isActive = item.href && pathname === item.href;
         const Icon = item.icon;
 
@@ -155,8 +149,7 @@ export default function SidebarList() {
               <>
                 <div
                   onClick={() => toggleMenu(item.label)}
-                  className={`px-3 py-2 cursor-pointer flex justify-between items-center
-                    ${base3D} ${hover3D}`}
+                  className={`px-3 py-2 cursor-pointer flex justify-between items-center ${base3D} ${hover3D}`}
                 >
                   <div className="flex items-center gap-2">
                     <Icon size={18} className="text-gray-500" />
@@ -165,30 +158,26 @@ export default function SidebarList() {
 
                   <ChevronDown
                     size={16}
-                    className={`transition-transform duration-300 text-gray-500 ${
-                      openMenus[item.label] ? 'rotate-180' : ''
-                    }`}
+                    className={`transition-transform duration-300 text-gray-500 ${openMenus[item.label] ? "rotate-180" : ""}`}
                   />
                 </div>
 
                 <ul
                   className={`pl-8 overflow-hidden transition-all duration-300 ease-in-out ${
-                    openMenus[item.label]
-                      ? 'max-h-96 opacity-100'
-                      : 'max-h-0 opacity-0'
+                    openMenus[item.label] ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
-                  {item.children.map(child => {
+                  {item.children.map((child) => {
                     const isChildActive = pathname === child.href;
                     const ChildIcon = child.icon;
 
                     return (
-                      <li key={child.href}>
+                      <li key={child.href || child.label}>
                         <Link
                           href={child.href!}
-                          className={`flex items-center gap-2 px-2 py-1 text-gray-700
-                            ${base3D} ${hover3D}
-                            ${isChildActive ? active3D : ''}`}
+                          className={`flex items-center gap-2 px-2 py-1 text-gray-700 ${base3D} ${hover3D} ${
+                            isChildActive ? active3D : ""
+                          }`}
                         >
                           <ChildIcon size={16} className="text-gray-500" />
                           {child.label}
@@ -201,9 +190,7 @@ export default function SidebarList() {
             ) : (
               <Link
                 href={item.href!}
-                className={`flex items-center gap-2 px-3 py-2
-                  ${base3D} ${hover3D}
-                  ${isActive ? active3D : ''}`}
+                className={`flex items-center gap-2 px-3 py-2 ${base3D} ${hover3D} ${isActive ? active3D : ""}`}
               >
                 <Icon size={18} className="text-gray-600" />
                 {item.label}

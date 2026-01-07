@@ -17,39 +17,35 @@ export async function POST(req: NextRequest) {
   await requireSuperAdmin(req);
 
   const {
-    businessName,
+    companyName,
+    businessName, // backward compatibility
     email,
     password,
     phone,
-    planDays,
     enabledModules = [],
     maxUsers = 1,
   } = await req.json();
 
-  if (!businessName || !email || !password || !planDays) {
+  const finalName = String(companyName || businessName || "").trim();
+
+  if (!finalName || !email || !password) {
     return NextResponse.json(
-      { error: "businessName/email/password/planDays required" },
+      { error: "companyName/email/password required" },
       { status: 400 }
     );
   }
 
   await connectDB();
 
-  const planStartsAt = new Date();
-  const planExpiresAt = new Date(
-    planStartsAt.getTime() + Number(planDays) * 24 * 60 * 60 * 1000
-  );
-
   const exists = await Company.findOne({ email: String(email).toLowerCase() }).lean();
-  if (exists) return NextResponse.json({ error: "Company email already exists" }, { status: 409 });
+  if (exists) {
+    return NextResponse.json({ error: "Company email already exists" }, { status: 409 });
+  }
 
   const company = await Company.create({
-    businessName: String(businessName).trim(),
+    companyName: finalName,
     email: String(email).toLowerCase(),
     phone: String(phone || "").trim(),
-    planDays: Number(planDays),
-    planStartsAt,
-    planExpiresAt,
     enabledModules,
     maxUsers: Number(maxUsers),
     isActive: true,
@@ -61,7 +57,7 @@ export async function POST(req: NextRequest) {
     companyId: company._id,
     email: String(email).toLowerCase(),
     passwordHash,
-    name: "Owner",
+    name: "Company Owner",
     isOwner: true,
     isActive: true,
     allowedModules: enabledModules,
