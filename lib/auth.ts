@@ -20,6 +20,10 @@ export type CompanySession = {
   companyId: string;
   email: string;
   name?: string;
+
+  // ✅ NEW: company name (owner display)
+  companyName?: string;
+
   role: CompanyRole;
   isOwner: boolean;
   allowedModules: string[];
@@ -83,9 +87,11 @@ export async function requireCompanyAuth(req: NextRequest) {
 
   await connectDB();
 
+  // ✅ add companyName in select
   const company = await Company.findById(session.companyId)
-    .select("isActive enabledModules")
+    .select("isActive enabledModules companyName")
     .lean();
+
   if (!company?.isActive) throw new AuthError("UNAUTHORIZED", 401);
 
   const user = await CompanyUser.findById(session.userId)
@@ -105,6 +111,7 @@ export async function requireCompanyAuth(req: NextRequest) {
     companyId: String(user.companyId),
     email: user.email,
     name: user.name || "",
+    companyName: (company as any).companyName || "", // ✅ NEW
     role: (user.role || "STAFF") as CompanyRole,
     isOwner: Boolean(user.isOwner),
     allowedModules: finalAllowed,

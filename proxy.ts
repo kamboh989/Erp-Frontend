@@ -6,7 +6,6 @@ function prompt() {
   return res;
 }
 
-// OPTIONAL: route -> module mapping (manual URL block)
 const MODULE_ROUTE_MAP: Array<{ prefix: string; module: string }> = [
   { prefix: "/crm/leads", module: "CRM_LEADS" },
   { prefix: "/crm/customers", module: "CRM_CUSTOMERS" },
@@ -21,41 +20,49 @@ const MODULE_ROUTE_MAP: Array<{ prefix: string; module: string }> = [
   { prefix: "/settings", module: "SETTINGS" },
 ];
 
-export async function middleware(req: NextRequest) {
+function basicAuthOk(req: NextRequest) {
+  const auth = req.headers.get("authorization");
+  if (!auth?.startsWith("Basic ")) return false;
+
+  let decoded = "";
+  try {
+    decoded = atob(auth.slice(6));
+  } catch {
+    return false;
+  }
+
+  const idx = decoded.indexOf(":");
+  if (idx === -1) return false;
+
+  const email = decoded.slice(0, idx);
+  const pass = decoded.slice(idx + 1);
+
+  const envEmail = process.env.SEED_SUPER_EMAIL;
+  const envPass = process.env.SEED_SUPER_PASS;
+
+  if (!envEmail || !envPass) return false;
+  return email === envEmail && pass === envPass;
+}
+
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // ignore next internals/api
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon.ico") ||
-    pathname.startsWith("/api")
-  ) {
+  // ✅ ignore next internals only
+  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon.ico")) {
     return NextResponse.next();
   }
 
-  // =========================
-  // 1) SUPER ADMIN BASIC AUTH
-  // =========================
-  if (pathname.startsWith("/super-admin")) {
-    const auth = req.headers.get("authorization");
-    if (!auth?.startsWith("Basic ")) return prompt();
+  // ✅ SUPER ADMIN: protect BOTH UI + API
+  const isSuperAdminArea =
+    pathname.startsWith("/super-admin") || pathname.startsWith("/api/super-admin");
 
-    const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
-    const idx = decoded.indexOf(":");
-    if (idx === -1) return prompt();
+  if (isSuperAdminArea) {
+    if (!basicAuthOk(req)) return prompt();
+    return NextResponse.next();
+  }
 
-    const email = decoded.slice(0, idx);
-    const pass = decoded.slice(idx + 1);
-
-    const envEmail = process.env.SEED_SUPER_EMAIL;
-    const envPass = process.env.SEED_SUPER_PASS;
-
-    if (!envEmail || !envPass) {
-      return new NextResponse("Missing SEED_SUPER_EMAIL/SEED_SUPER_PASS in env", { status: 500 });
-    }
-
-    if (email !== envEmail || pass !== envPass) return prompt();
-
+  // ✅ ignore other APIs (normal app APIs)
+  if (pathname.startsWith("/api")) {
     return NextResponse.next();
   }
 
@@ -81,7 +88,6 @@ export async function middleware(req: NextRequest) {
     cache: "no-store",
   });
 
-  // if auth/me fails, kick to login
   if (!meRes.ok) {
     const login = req.nextUrl.clone();
     login.pathname = "/auth/login";
@@ -92,7 +98,6 @@ export async function middleware(req: NextRequest) {
   const me = await meRes.json();
   const session = me?.session;
 
-  // no session => redirect login
   if (!session?.userId || !session?.companyId) {
     const login = req.nextUrl.clone();
     login.pathname = "/";
@@ -102,12 +107,10 @@ export async function middleware(req: NextRequest) {
 
   const allowed: string[] = session?.allowedModules || [];
 
-  // dashboard always allowed
   if (pathname.startsWith("/dashboard")) {
     return NextResponse.next();
   }
 
-  // module check for other routes
   const match = MODULE_ROUTE_MAP.find((x) => pathname.startsWith(x.prefix));
   if (match && !allowed.includes(match.module)) {
     const deny = req.nextUrl.clone();
@@ -122,6 +125,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/super-admin/:path*",
+    "/api/super-admin/:path*",
     "/dashboard/:path*",
     "/crm/:path*",
     "/erp/:path*",

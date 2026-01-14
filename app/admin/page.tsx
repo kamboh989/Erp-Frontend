@@ -229,6 +229,7 @@ export default function AdminUsersPage() {
                 <option value="STAFF">Staff</option>
                 <option value="ADMIN">Admin</option>
               </select>
+              <span>Admin role users can access admin features only. Owner profile is restricted.</span>
             </div>
 
             <div>

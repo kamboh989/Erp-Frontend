@@ -14,7 +14,11 @@ export async function GET(req: NextRequest) {
   const session = await requireCompanyAuth(req);
   await connectDB();
 
-  const users = await CompanyUser.find({ companyId: session.companyId })
+  // ✅ client admin ko owner show nahi hoga
+  const users = await CompanyUser.find({
+    companyId: session.companyId,
+    isOwner: { $ne: true },
+  })
     .select("-passwordHash")
     .sort({ createdAt: -1 })
     .lean();
@@ -35,16 +39,23 @@ export async function POST(req: NextRequest) {
   const company = await Company.findById(session.companyId).select("maxUsers enabledModules").lean();
   if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
-  const count = await CompanyUser.countDocuments({ companyId: session.companyId });
+  // ✅ LIMIT: owner count nahi hoga
+  const count = await CompanyUser.countDocuments({
+    companyId: session.companyId,
+    isOwner: { $ne: true },
+  });
 
   if (count >= Number(company.maxUsers || 1)) {
     return NextResponse.json({ error: "User limit reached" }, { status: 403 });
   }
 
-  // ✅ staff cannot create ADMIN
-  const finalRole = (session.isOwner || session.role === "ADMIN")
-    ? (role === "ADMIN" ? "ADMIN" : "STAFF")
-    : "STAFF";
+  // staff cannot create ADMIN
+  const finalRole =
+    session.isOwner || session.role === "ADMIN"
+      ? role === "ADMIN"
+        ? "ADMIN"
+        : "STAFF"
+      : "STAFF";
 
   const finalModules = intersectAllowed(
     Array.isArray(allowedModules) ? allowedModules : [],
@@ -63,6 +74,7 @@ export async function POST(req: NextRequest) {
     allowedModules: finalModules,
     isActive: true,
     isOwner: false,
+    lockedBySuper: false, // ✅ default
   });
 
   const safe = await CompanyUser.findById(user._id).select("-passwordHash").lean();

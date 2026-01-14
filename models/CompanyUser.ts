@@ -12,11 +12,13 @@ const CompanyUserSchema = new Schema(
 
     role: { type: String, enum: ["ADMIN", "STAFF"], required: false },
 
-
     allowedModules: { type: [String], default: [] },
 
     isOwner: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
+
+    // ✅ NEW: if super-admin deactivates, company cannot re-activate until super-admin unlocks
+    lockedBySuper: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

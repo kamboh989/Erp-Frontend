@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (body.maxUsers !== undefined) company.maxUsers = Number(body.maxUsers);
   if (body.isActive !== undefined) company.isActive = Boolean(body.isActive);
 
-  // ✅ enabledModules update + sync to ALL users
+  // enabledModules update + sync to ALL users
   if (body.enabledModules !== undefined) {
     const mods = Array.isArray(body.enabledModules) ? body.enabledModules : [];
     company.enabledModules = mods;
@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     );
   }
 
-  // ✅ email update (unique) + update owner email
+  // email update (unique) + update owner email
   if (body.email !== undefined) {
     const newEmail = String(body.email).toLowerCase().trim();
     const clash = await Company.findOne({ email: newEmail, _id: { $ne: company._id } }).lean();
@@ -50,17 +50,25 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     );
   }
 
-  // ✅ password reset -> owner password update
-  if (body.password !== undefined && String(body.password).length >= 4) {
-    const passwordHash = await bcrypt.hash(String(body.password), 10);
-    await CompanyUser.updateOne(
+  // ✅ password reset -> owner password update (FIXED)
+  let changedPassword = false;
+  if (body.password !== undefined) {
+    const nextPass = String(body.password || "").trim();
+    if (nextPass.length < 4) {
+      return NextResponse.json({ error: "Password must be at least 4 chars" }, { status: 400 });
+    }
+
+    const passwordHash = await bcrypt.hash(nextPass, 10);
+    const result = await CompanyUser.updateOne(
       { companyId: company._id, isOwner: true },
       { $set: { passwordHash } }
     );
+
+    changedPassword = (result as any)?.modifiedCount > 0 || (result as any)?.matchedCount > 0;
   }
 
   await company.save();
-  return NextResponse.json({ company: company.toObject() });
+  return NextResponse.json({ company: company.toObject(), changedPassword });
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {

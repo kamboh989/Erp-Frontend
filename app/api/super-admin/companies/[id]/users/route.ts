@@ -11,10 +11,17 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
   const { id } = await ctx.params;
 
-  const users = await CompanyUser.find({ companyId: id })
+  const owner = await CompanyUser.findOne({ companyId: id, isOwner: true })
+    .select("-passwordHash")
+    .lean();
+
+  const users = await CompanyUser.find({
+    companyId: id,
+    isOwner: { $ne: true },
+  })
     .select("-passwordHash")
     .sort({ createdAt: -1 })
     .lean();
 
-  return NextResponse.json({ users });
+  return NextResponse.json({ owner, users });
 }

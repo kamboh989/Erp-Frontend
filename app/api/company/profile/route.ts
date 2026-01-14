@@ -21,17 +21,28 @@ export async function PATCH(req: NextRequest) {
   const me = await CompanyUser.findById(session.userId);
   if (!me) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
 
-  // ✅ only owner can change owner email/password (as you requested)
+  // ✅ only owner can change owner email/password
   if (!me.isOwner) {
     return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   }
 
   if (body.email !== undefined) me.email = String(body.email).toLowerCase().trim();
-  if (body.password !== undefined && String(body.password).length >= 4) {
-    me.passwordHash = await bcrypt.hash(String(body.password), 10);
+
+  // ✅ password update (FIXED: trim + proper error)
+  let changedPassword = false;
+  if (body.password !== undefined) {
+    const nextPass = String(body.password || "").trim();
+
+    if (nextPass.length < 4) {
+      return NextResponse.json({ error: "Password must be at least 4 chars" }, { status: 400 });
+    }
+
+    me.passwordHash = await bcrypt.hash(nextPass, 10);
+    changedPassword = true;
   }
 
   await me.save();
   const safe = await CompanyUser.findById(me._id).select("-passwordHash").lean();
-  return NextResponse.json({ me: safe });
+
+  return NextResponse.json({ me: safe, changedPassword });
 }

@@ -6,49 +6,83 @@ import CompanyUser from "@/models/CompanyUser";
 import { setCompanyCookie } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  const { companyEmail, email, password } = await req.json();
+  const { email, password } = await req.json();
 
-  if (!companyEmail || !email || !password) {
-    return NextResponse.json(
-      { error: "companyEmail/email/password required" },
-      { status: 400 }
-    );
+  if (!email || !password) {
+    return NextResponse.json({ error: "email/password required" }, { status: 400 });
   }
 
   await connectDB();
+  const e = String(email).toLowerCase().trim();
 
-  const ce = String(companyEmail).toLowerCase().trim();
-  const ue = String(email).toLowerCase().trim();
+  // 1) FIRST: CompanyUser (STAFF/ADMIN) — non-owner prefer
+  const user = await CompanyUser.findOne({ email: e, isActive: true })
+    .sort({ isOwner: 1, createdAt: -1 })
+    .lean();
 
-  // ✅ company identify by companyEmail (owner email)
-  const company = await Company.findOne({ email: ce, isActive: true }).lean();
+  if (user) {
+    const company = await Company.findById(user.companyId).lean();
+
+    if (!company) return NextResponse.json({ error: "COMPANY_NOT_FOUND" }, { status: 404 });
+    if (company.isActive === false) {
+      return NextResponse.json({ error: "Company is inactive" }, { status: 403 });
+    }
+
+    const ok = await bcrypt.compare(String(password), user.passwordHash);
+    if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+
+    const enabled = new Set<string>((company.enabledModules || []) as string[]);
+    const allowed = ((user.allowedModules || []) as string[]).filter((m) => enabled.has(m));
+
+    const res = NextResponse.json({ ok: true, kind: "company_user" });
+
+    setCompanyCookie(res, {
+      userId: String(user._id),
+      companyId: String(company._id),
+      email: user.email,
+      name: user.name || "",
+      companyName: (company as any).companyName || "", // ✅ ADD
+      role: (user.role || "STAFF") as any,
+      isOwner: Boolean(user.isOwner),
+      allowedModules: allowed,
+    });
+
+    return res;
+  }
+
+  // 2) FALLBACK: Company email (OWNER)
+  const company = await Company.findOne({ email: e }).lean();
   if (!company) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  if (company.isActive === false) {
+    return NextResponse.json({ error: "Company is inactive" }, { status: 403 });
+  }
 
-  // ✅ user inside this company by user email
-  const user = await CompanyUser.findOne({
+  const ownerUser = await CompanyUser.findOne({
     companyId: company._id,
-    email: ue,
+    email: e,
     isActive: true,
   }).lean();
 
-  if (!user) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  if (!ownerUser) {
+    return NextResponse.json({ error: "Owner user not found in CompanyUser" }, { status: 401 });
+  }
 
-  const ok = await bcrypt.compare(String(password), user.passwordHash);
+  const ok = await bcrypt.compare(String(password), ownerUser.passwordHash);
   if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
 
-  // ✅ allowedModules = user.allowedModules ∩ company.enabledModules
   const enabled = new Set<string>((company.enabledModules || []) as string[]);
-  const allowed = ((user.allowedModules || []) as string[]).filter((m) => enabled.has(m));
+  const allowed = ((ownerUser.allowedModules || []) as string[]).filter((m) => enabled.has(m));
 
-  const res = NextResponse.json({ ok: true });
+  const res = NextResponse.json({ ok: true, kind: "company_owner" });
 
   setCompanyCookie(res, {
-    userId: String(user._id),
+    userId: String(ownerUser._id),
     companyId: String(company._id),
-    email: user.email,
-    name: user.name || "",
-    role: (user.role || "STAFF") as any,
-    isOwner: Boolean(user.isOwner),
+    email: ownerUser.email,
+    name: ownerUser.name || "",
+    companyName: (company as any).companyName || "", // ✅ ADD
+    role: (ownerUser.role || "ADMIN") as any,
+    isOwner: true,
     allowedModules: allowed,
   });
 

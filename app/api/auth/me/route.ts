@@ -10,8 +10,9 @@ export async function GET(req: NextRequest) {
 
   await connectDB();
 
+  // ✅ add companyName in select
   const company = await Company.findById(s.companyId)
-    .select("isActive enabledModules")
+    .select("isActive enabledModules companyName")
     .lean();
 
   if (!company?.isActive) return NextResponse.json({ session: null }, { status: 200 });
@@ -31,11 +32,10 @@ export async function GET(req: NextRequest) {
       companyId: String(user.companyId),
       email: user.email,
       name: user.name || "",
-      role: user.role || "STAFF",
+      companyName: (company as any).companyName || "", // ✅ NEW
+      role: (user.role || "STAFF") as any,
       isOwner: Boolean(user.isOwner),
       allowedModules: allowed,
     },
   });
 }
-
-

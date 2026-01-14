@@ -12,9 +12,22 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const { id, userId } = await ctx.params;
   const { isActive } = await req.json();
 
+  const update: any = {};
+
+  if (isActive !== undefined) {
+    const nextActive = Boolean(isActive);
+    update.isActive = nextActive;
+
+    // ✅ super-admin deactivate => lock
+    if (nextActive === false) update.lockedBySuper = true;
+
+    // ✅ super-admin activate => unlock
+    if (nextActive === true) update.lockedBySuper = false;
+  }
+
   const user = await CompanyUser.findOneAndUpdate(
     { _id: userId, companyId: id, isOwner: { $ne: true } },
-    { ...(isActive !== undefined ? { isActive: Boolean(isActive) } : {}) },
+    update,
     { new: true }
   )
     .select("-passwordHash")

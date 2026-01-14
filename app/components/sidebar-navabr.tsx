@@ -16,7 +16,8 @@ export default function NavbarWithSidebar({ children }: Props) {
   pathname === "/" ||
   pathname === "/super-admin" ||
   pathname.startsWith("/super-admin/companies") ||
-  pathname.startsWith("/super-admin/users") 
+  pathname.startsWith("/super-admin/users") || 
+  pathname.startsWith("/auth/login");
 
   
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);

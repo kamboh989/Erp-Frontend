@@ -58,9 +58,11 @@ export async function POST(req: NextRequest) {
     email: String(email).toLowerCase(),
     passwordHash,
     name: "Company Owner",
+    role: "ADMIN",          // ✅ ADD: owner ka role admin rahega
     isOwner: true,
     isActive: true,
     allowedModules: enabledModules,
+    lockedBySuper: false,   // ✅ ADD: (agar aapne field add ki hai to)
   });
 
   return NextResponse.json({ company }, { status: 201 });

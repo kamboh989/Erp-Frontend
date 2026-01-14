@@ -23,6 +23,7 @@ type CompanyUser = {
   isActive?: boolean;
   allowedModules?: AppModule[];
   createdAt?: string;
+  lockedBySuper?: boolean;
 };
 
 const card = "rounded-2xl border border-white/10 bg-white/5 p-5 shadow-xl";
@@ -50,6 +51,7 @@ export default function SuperAdminCompaniesPage() {
 
   // expand company users
   const [openUsersFor, setOpenUsersFor] = useState<string | null>(null);
+  const [companyOwner, setCompanyOwner] = useState<CompanyUser | null>(null); // ✅ NEW
   const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -154,7 +156,6 @@ export default function SuperAdminCompaniesPage() {
       prev.map((x) => (x._id === editCompany._id ? (j.company as Company) : x))
     );
 
-    // ✅ re-fetch to ensure list + users sync
     await loadCompanies();
     closeEdit();
   }
@@ -207,6 +208,7 @@ export default function SuperAdminCompaniesPage() {
 
       if (openUsersFor === c._id) {
         setOpenUsersFor(null);
+        setCompanyOwner(null);
         setCompanyUsers([]);
       }
 
@@ -218,6 +220,7 @@ export default function SuperAdminCompaniesPage() {
     }
   }
 
+  // ✅ NEW: owner + users separate
   async function loadCompanyUsers(companyId: string) {
     setUsersLoading(true);
     const r = await fetch(`/api/super-admin/companies/${companyId}/users`, { cache: "no-store" });
@@ -231,6 +234,7 @@ export default function SuperAdminCompaniesPage() {
       return;
     }
 
+    setCompanyOwner(j.owner || null);
     setCompanyUsers(j.users || []);
     setUsersLoading(false);
   }
@@ -303,7 +307,7 @@ export default function SuperAdminCompaniesPage() {
                 <label className="text-sm text-white/70">Max Users</label>
                 <input className={input} type="number" min={1} value={maxUsers} onChange={(e) => setMaxUsers(Number(e.target.value))} />
                 <div className="text-xs text-white/50">
-                  Max users limit enforce future me user-create endpoint pe hoga.
+                  ✅ Owner count nahi hoga. MaxUsers = extra users limit.
                 </div>
               </div>
             </div>
@@ -351,16 +355,14 @@ export default function SuperAdminCompaniesPage() {
                           <div className="text-white/90">{c.email}</div>
                           <div className="text-white/60 text-xs">{c.phone || "—"}</div>
                         </td>
+
+                        {/* ✅ maxUsers shows extra users limit */}
                         <td className="py-3 text-white/80">{c.maxUsers}</td>
 
-                        {/* ✅ modules chips (no hide) */}
                         <td className="py-3">
                           <div className="flex flex-wrap gap-1 max-w-[520px]">
                             {(c.enabledModules || []).map((m) => (
-                              <span
-                                key={m}
-                                className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10"
-                              >
+                              <span key={m} className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10">
                                 {m}
                               </span>
                             ))}
@@ -381,6 +383,7 @@ export default function SuperAdminCompaniesPage() {
                             {c.isActive ? "Active" : "Deactive"}
                           </span>
                         </td>
+
                         <td className="py-3">
                           <div className="flex justify-end gap-2">
                             <button className={btnGhost} onClick={() => openEdit(c)}>Edit</button>
@@ -390,6 +393,7 @@ export default function SuperAdminCompaniesPage() {
                               onClick={async () => {
                                 if (openUsersFor === c._id) {
                                   setOpenUsersFor(null);
+                                  setCompanyOwner(null);
                                   setCompanyUsers([]);
                                 } else {
                                   setOpenUsersFor(c._id);
@@ -428,56 +432,81 @@ export default function SuperAdminCompaniesPage() {
                             {usersLoading ? (
                               <div className="text-white/60">Loading users...</div>
                             ) : (
-                              <div className="overflow-auto">
-                                <table className="w-full text-sm">
-                                  <thead className="text-white/60">
-                                    <tr className="border-b border-white/10">
-                                      <th className="py-2 text-left">Email</th>
-                                      <th className="py-2 text-left">Name</th>
-                                      <th className="py-2 text-left">Owner</th>
-                                      <th className="py-2 text-left">Status</th>
-                                      <th className="py-2 text-right">Action</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {companyUsers.map((u) => (
-                                      <tr key={u._id} className="border-b border-white/5 hover:bg-white/5">
-                                        <td className="py-2">{u.email}</td>
-                                        <td className="py-2 text-white/70">{u.name || "—"}</td>
-                                        <td className="py-2 text-white/70">{u.isOwner ? "Yes" : "No"}</td>
-                                        <td className="py-2">
-                                          <span
-                                            className={`text-xs px-2 py-1 rounded-full border ${
-                                              u.isActive
-                                                ? "border-green-500/40 bg-green-500/10 text-green-200"
-                                                : "border-red-500/40 bg-red-500/10 text-red-200"
-                                            }`}
-                                          >
-                                            {u.isActive ? "Active" : "Deactive"}
-                                          </span>
-                                        </td>
-                                        <td className="py-2">
-                                          <div className="flex justify-end">
-                                            <button
-                                              className={btnGhost}
-                                              onClick={() => toggleUserActive(c._id, u)}
-                                              disabled={u.isOwner}
+                              <div className="space-y-3">
+                                {/* ✅ Owner separate */}
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                  <div className="text-sm font-semibold mb-2">Company Owner</div>
+                                  {companyOwner ? (
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <div className="font-semibold">{companyOwner.email}</div>
+                                        <div className="text-xs text-white/60">{companyOwner.name || "Owner"}</div>
+                                      </div>
+                                      <span className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10">
+                                        OWNER
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-white/60 text-sm">Owner not found</div>
+                                  )}
+                                </div>
+
+                                {/* ✅ Non-owner users table */}
+                                <div className="overflow-auto">
+                                  <table className="w-full text-sm">
+                                    <thead className="text-white/60">
+                                      <tr className="border-b border-white/10">
+                                        <th className="py-2 text-left">Email</th>
+                                        <th className="py-2 text-left">Name</th>
+                                        <th className="py-2 text-left">Status</th>
+                                        <th className="py-2 text-right">Action</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {companyUsers.map((u) => (
+                                        <tr key={u._id} className="border-b border-white/5 hover:bg-white/5">
+                                          <td className="py-2">{u.email}</td>
+                                          <td className="py-2 text-white/70">{u.name || "—"}</td>
+                                          <td className="py-2">
+                                            <span
+                                              className={`text-xs px-2 py-1 rounded-full border ${
+                                                u.isActive
+                                                  ? "border-green-500/40 bg-green-500/10 text-green-200"
+                                                  : "border-red-500/40 bg-red-500/10 text-red-200"
+                                              }`}
                                             >
-                                              {u.isActive ? "Deactivate" : "Activate"}
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                    {companyUsers.length === 0 && (
-                                      <tr>
-                                        <td colSpan={5} className="py-4 text-white/60">
-                                          No users found. (Owner auto-created; future me company admin users add honge.)
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </tbody>
-                                </table>
+                                              {u.isActive ? "Active" : "Deactive"}
+                                            </span>
+
+                                            {u.lockedBySuper && (
+                                              <span className="ml-2 text-xs px-2 py-1 rounded-full border border-yellow-500/40 bg-yellow-500/10 text-yellow-200">
+                                                Locked by Super
+                                              </span>
+                                            )}
+                                          </td>
+                                          <td className="py-2">
+                                            <div className="flex justify-end">
+                                              <button
+                                                className={btnGhost}
+                                                onClick={() => toggleUserActive(c._id, u)}
+                                              >
+                                                {u.isActive ? "Deactivate" : "Activate"}
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      ))}
+
+                                      {companyUsers.length === 0 && (
+                                        <tr>
+                                          <td colSpan={4} className="py-4 text-white/60">
+                                            No users found (besides owner).
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
                               </div>
                             )}
                           </td>
@@ -549,7 +578,7 @@ export default function SuperAdminCompaniesPage() {
                   </div>
 
                   <div className="text-xs text-white/50 mt-2">
-                    Modules change karne se CompanyUser.allowedModules auto-sync hoga (PATCH backend me).
+                    Modules change karne se CompanyUser.allowedModules auto-sync hoga (backend me).
                   </div>
                 </div>
               </div>
@@ -561,3 +590,4 @@ export default function SuperAdminCompaniesPage() {
     </div>
   );
 }
+
