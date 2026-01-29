@@ -4,6 +4,8 @@ import { connectDB } from "@/lib/db";
 import CompanyUser from "@/models/CompanyUser";
 import Company from "@/models/Company";
 import { requireCompanyAuth } from "@/lib/auth";
+import { blockSamePasswordAcrossCompanies } from "@/lib/checkHelper";
+
 
 function intersectAllowed(userMods: string[], enabledMods: string[]) {
   const set = new Set(enabledMods || []);
@@ -49,6 +51,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "User limit reached" }, { status: 403 });
   }
 
+  const e = String(email).toLowerCase().trim();
+  const p = String(password);
+
+  // ✅ NEW: Cross-company same password restriction for same email
+  const blocked = await blockSamePasswordAcrossCompanies({
+    email: e,
+    companyId: String(session.companyId),
+    plainPassword: p,
+  });
+
+  if (blocked) {
+    return NextResponse.json(
+      { error: "SAME_PASSWORD_NOT_ALLOWED_ACROSS_COMPANIES" },
+      { status: 409 }
+    );
+  }
+
   // staff cannot create ADMIN
   const finalRole =
     session.isOwner || session.role === "ADMIN"
@@ -62,21 +81,30 @@ export async function POST(req: NextRequest) {
     (company.enabledModules || []) as string[]
   );
 
-  const passwordHash = await bcrypt.hash(String(password), 10);
+  const passwordHash = await bcrypt.hash(p, 10);
 
-  const user = await CompanyUser.create({
-    companyId: session.companyId,
-    email: String(email).toLowerCase().trim(),
-    passwordHash,
-    name: String(name).trim(),
-    phone: String(phone || "").trim(),
-    role: finalRole,
-    allowedModules: finalModules,
-    isActive: true,
-    isOwner: false,
-    lockedBySuper: false, // ✅ default
-  });
+  try {
+    const user = await CompanyUser.create({
+      companyId: session.companyId,
+      email: e,
+      passwordHash,
+      name: String(name).trim(),
+      phone: String(phone || "").trim(),
+      role: finalRole,
+      allowedModules: finalModules,
+      isActive: true,
+      isOwner: false,
+      lockedBySuper: false,
+    });
 
-  const safe = await CompanyUser.findById(user._id).select("-passwordHash").lean();
-  return NextResponse.json({ user: safe }, { status: 201 });
+    const safe = await CompanyUser.findById(user._id).select("-passwordHash").lean();
+    return NextResponse.json({ user: safe }, { status: 201 });
+  } catch (err: any) {
+    // ✅ if same email inside same company due to unique index
+    if (err?.code === 11000) {
+      return NextResponse.json({ error: "EMAIL_ALREADY_EXISTS_IN_COMPANY" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
+  }
 }
+

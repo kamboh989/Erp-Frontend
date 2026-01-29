@@ -134,8 +134,8 @@ export default function SidebarList() {
 
   const base3D = "transition-all duration-300 ease-out transform rounded";
   const hover3D =
-    "hover:-translate-y-[1px] hover:shadow-lg hover:bg-gradient-to-r hover:from-zinc-100 hover:to-blue-100";
-  const active3D = "bg-gradient-to-r from-zinc-100 to-blue-100 shadow-lg -translate-y-[1px]";
+    "hover:-translate-y-[1px] hover:shadow-lg hover:bg-gradient-to-r hover:from-zinc-100 hover:to-blue-200";
+  const active3D = "bg-gradient-to-r from-zinc-100 to-blue-300 shadow-lg -translate-y-[1px]";
 
   return (
     <ul className="space-y-2">

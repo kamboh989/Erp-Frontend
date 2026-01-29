@@ -90,7 +90,7 @@ export async function proxy(req: NextRequest) {
 
   if (!meRes.ok) {
     const login = req.nextUrl.clone();
-    login.pathname = "/auth/login";
+    login.pathname = "/";
     login.search = "";
     return NextResponse.redirect(login);
   }

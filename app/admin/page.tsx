@@ -18,10 +18,32 @@ type CompanyUser = {
 };
 
 const card = "rounded-2xl border border-white/10 bg-white/5 p-5 shadow-xl";
-const btnPrimary = "rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-2 text-sm font-semibold";
+const btnPrimary =
+  "rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-2 text-sm font-semibold";
 const btnGhost = "rounded-xl bg-white/10 hover:bg-white/15 px-4 py-2 text-sm";
-const btnDanger = "rounded-xl bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-semibold";
-const input = "rounded-xl bg-black/30 border border-white/10 px-3 py-2 outline-none focus:border-blue-500";
+const btnDanger =
+  "rounded-xl bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-semibold";
+const input =
+  "rounded-xl bg-black/30 border border-white/10 px-3 py-2 outline-none focus:border-blue-500";
+
+function mapApiError(code: string) {
+  if (!code) return "Failed";
+
+  switch (code) {
+    case "SAME_PASSWORD_NOT_ALLOWED_ACROSS_COMPANIES":
+      return "This email already exists in another company. Please set a different password for this company.";
+    case "EMAIL_ALREADY_EXISTS_IN_COMPANY":
+      return "This email already exists in this company.";
+    case "PASSWORD_REQUIRED_WHEN_EMAIL_USED_IN_OTHER_COMPANY":
+      return "This email is used in another company. Please also set a NEW password in the same update.";
+    case "FORBIDDEN":
+      return "Forbidden.";
+    case "LOCKED_BY_SUPER_ADMIN":
+      return "This user is locked by super admin and cannot be activated.";
+    default:
+      return code; // fallback: show raw code
+  }
+}
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -36,7 +58,9 @@ export default function AdminUsersPage() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<"ADMIN" | "STAFF">("STAFF");
-  const [allowedModules, setAllowedModules] = useState<AppModule[]>(["DASHBOARD"]);
+  const [allowedModules, setAllowedModules] = useState<AppModule[]>([
+    "DASHBOARD",
+  ]);
 
   // edit modal
   const [editOpen, setEditOpen] = useState(false);
@@ -44,7 +68,10 @@ export default function AdminUsersPage() {
   const [editPassword, setEditPassword] = useState("");
 
   async function loadSession() {
-    const r = await fetch("/api/auth/me", { cache: "no-store", credentials: "include" });
+    const r = await fetch("/api/auth/me", {
+      cache: "no-store",
+      credentials: "include",
+    });
     const j = await r.json();
     setSession(j?.session || null);
     return j?.session || null;
@@ -52,10 +79,13 @@ export default function AdminUsersPage() {
 
   async function loadUsers() {
     setLoading(true);
-    const r = await fetch("/api/company/users", { cache: "no-store", credentials: "include" });
+    const r = await fetch("/api/company/users", {
+      cache: "no-store",
+      credentials: "include",
+    });
     const j = await r.json();
     if (!r.ok) {
-      alert(j?.error || "Failed to load users");
+      alert(mapApiError(j?.error) || "Failed to load users");
       setLoading(false);
       return;
     }
@@ -82,7 +112,8 @@ export default function AdminUsersPage() {
   }, []);
 
   async function createUser() {
-    if (!name.trim() || !email.trim() || !password.trim()) return alert("name/email/password required");
+    if (!name.trim() || !email.trim() || !password.trim())
+      return alert("name/email/password required");
 
     const r = await fetch("/api/company/users", {
       method: "POST",
@@ -99,10 +130,13 @@ export default function AdminUsersPage() {
     });
 
     const j = await r.json();
-    if (!r.ok) return alert(j?.error || "Failed");
+    if (!r.ok) return alert(mapApiError(j?.error));
 
     setUsers((p) => [j.user, ...p]);
-    setName(""); setEmail(""); setPassword(""); setPhone("");
+    setName("");
+    setEmail("");
+    setPassword("");
+    setPhone("");
     setRole("STAFF");
     setAllowedModules(["DASHBOARD"]);
   }
@@ -139,7 +173,7 @@ export default function AdminUsersPage() {
     });
 
     const j = await r.json();
-    if (!r.ok) return alert(j?.error || "Failed");
+    if (!r.ok) return alert(mapApiError(j?.error));
 
     setUsers((p) => p.map((x) => (x._id === editUser._id ? j.user : x)));
     closeEdit();
@@ -154,7 +188,7 @@ export default function AdminUsersPage() {
     });
 
     const j = await r.json();
-    if (!r.ok) return alert(j?.error || "Failed");
+    if (!r.ok) return alert(mapApiError(j?.error));
     setUsers((p) => p.map((x) => (x._id === u._id ? j.user : x)));
   }
 
@@ -164,7 +198,9 @@ export default function AdminUsersPage() {
     const confirmEmail = prompt("Confirm YOUR admin EMAIL to delete permanently:");
     if (!confirmEmail) return;
 
-    const confirmPassword = prompt("Confirm YOUR admin PASSWORD to delete permanently:");
+    const confirmPassword = prompt(
+      "Confirm YOUR admin PASSWORD to delete permanently:"
+    );
     if (!confirmPassword) return;
 
     const ok = confirm("LAST WARNING: user will be permanently deleted. Continue?");
@@ -178,7 +214,7 @@ export default function AdminUsersPage() {
     });
 
     const j = await r.json();
-    if (!r.ok) return alert(j?.error || "Delete failed");
+    if (!r.ok) return alert(mapApiError(j?.error) || "Delete failed");
 
     setUsers((p) => p.filter((x) => x._id !== u._id));
   }
@@ -195,9 +231,13 @@ export default function AdminUsersPage() {
         <div className="flex items-center justify-between">
           <div>
             <div className="text-2xl font-bold">Admin Control</div>
-            <div className="text-white/60 text-sm">Create/Edit users • Active/Deactive • Strict Delete</div>
+            <div className="text-white/60 text-sm">
+              Create/Edit users • Active/Deactive • Strict Delete
+            </div>
           </div>
-          <button className={btnGhost} onClick={loadUsers}>Refresh</button>
+          <button className={btnGhost} onClick={loadUsers}>
+            Refresh
+          </button>
         </div>
 
         {/* Create */}
@@ -205,31 +245,59 @@ export default function AdminUsersPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <div className="text-lg font-semibold">Create User</div>
-              <div className="text-white/60 text-sm">Phone optional. Role: Admin/Staff. Modules assignable.</div>
+              <div className="text-white/60 text-sm">
+                Phone optional. Role: Admin/Staff. Modules assignable.
+              </div>
             </div>
-            <button className={btnPrimary} onClick={createUser}>Create</button>
+            <button className={btnPrimary} onClick={createUser}>
+              Create
+            </button>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
             <div className="grid gap-3">
               <label className="text-sm text-white/70">Name</label>
-              <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
+              <input
+                className={input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
 
               <label className="text-sm text-white/70">Email</label>
-              <input className={input} value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input
+                className={input}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
 
               <label className="text-sm text-white/70">Password</label>
-              <input className={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input
+                className={input}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
 
               <label className="text-sm text-white/70">Phone (optional)</label>
-              <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input
+                className={input}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
 
               <label className="text-sm text-white/70">Role</label>
-              <select className={input} value={role} onChange={(e) => setRole(e.target.value as any)}>
+              <select
+                className={input}
+                value={role}
+                onChange={(e) => setRole(e.target.value as any)}
+              >
                 <option value="STAFF">Staff</option>
                 <option value="ADMIN">Admin</option>
               </select>
-              <span>Admin role users can access admin features only. Owner profile is restricted.</span>
+
+              <span className="text-xs text-white/60">
+                Note: If this email is already used in another company, you must set a different password (to prevent wrong-company login).
+              </span>
             </div>
 
             <div>
@@ -263,7 +331,10 @@ export default function AdminUsersPage() {
 
                 <tbody>
                   {sorted.map((u) => (
-                    <tr key={u._id} className="border-b border-white/5 hover:bg-white/5">
+                    <tr
+                      key={u._id}
+                      className="border-b border-white/5 hover:bg-white/5"
+                    >
                       <td className="py-3">
                         <div className="font-semibold">{u.name || "—"}</div>
                         <div className="text-white/70 text-xs">{u.email}</div>
@@ -273,18 +344,23 @@ export default function AdminUsersPage() {
 
                       <td className="py-3">
                         <span className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10">
-                          {u.isOwner ? "OWNER" : (u.role || "STAFF")}
+                          {u.isOwner ? "OWNER" : u.role || "STAFF"}
                         </span>
                       </td>
 
                       <td className="py-3">
                         <div className="flex flex-wrap gap-1 max-w-[520px]">
                           {(u.allowedModules || []).map((m) => (
-                            <span key={m} className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10">
+                            <span
+                              key={m}
+                              className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10"
+                            >
                               {m}
                             </span>
                           ))}
-                          {(u.allowedModules || []).length === 0 && <span className="text-xs text-white/50">—</span>}
+                          {(u.allowedModules || []).length === 0 && (
+                            <span className="text-xs text-white/50">—</span>
+                          )}
                         </div>
                       </td>
 
@@ -302,13 +378,23 @@ export default function AdminUsersPage() {
 
                       <td className="py-3">
                         <div className="flex justify-end gap-2">
-                          <button className={btnGhost} onClick={() => openEdit(u)}>Edit</button>
+                          <button className={btnGhost} onClick={() => openEdit(u)}>
+                            Edit
+                          </button>
 
-                          <button className={btnGhost} onClick={() => toggleActive(u)} disabled={u.isOwner}>
+                          <button
+                            className={btnGhost}
+                            onClick={() => toggleActive(u)}
+                            disabled={u.isOwner}
+                          >
                             {u.isActive ? "Deactivate" : "Activate"}
                           </button>
 
-                          <button className={btnDanger} onClick={() => strictDelete(u)} disabled={u.isOwner}>
+                          <button
+                            className={btnDanger}
+                            onClick={() => strictDelete(u)}
+                            disabled={u.isOwner}
+                          >
                             Delete
                           </button>
                         </div>
@@ -318,7 +404,9 @@ export default function AdminUsersPage() {
 
                   {sorted.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-6 text-white/60">No users found.</td>
+                      <td colSpan={6} className="py-6 text-white/60">
+                        No users found.
+                      </td>
                     </tr>
                   )}
                 </tbody>
@@ -333,32 +421,72 @@ export default function AdminUsersPage() {
             <div className="w-full max-w-4xl rounded-2xl border border-white/10 bg-[#0B0F19] p-5 max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <div className="text-lg font-semibold">Edit User</div>
-                <button className={btnGhost} onClick={closeEdit}>Close</button>
+                <button className={btnGhost} onClick={closeEdit}>
+                  Close
+                </button>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="grid gap-3">
                   <label className="text-sm text-white/70">Name</label>
-                  <input className={input} value={editUser.name || ""} onChange={(e) => setEditUser({ ...editUser, name: e.target.value })} />
+                  <input
+                    className={input}
+                    value={editUser.name || ""}
+                    onChange={(e) =>
+                      setEditUser({ ...editUser, name: e.target.value })
+                    }
+                  />
 
                   <label className="text-sm text-white/70">Email</label>
-                  <input className={input} value={editUser.email} onChange={(e) => setEditUser({ ...editUser, email: e.target.value })} />
+                  <input
+                    className={input}
+                    value={editUser.email}
+                    onChange={(e) =>
+                      setEditUser({ ...editUser, email: e.target.value })
+                    }
+                  />
+                  <div className="text-xs text-white/50">
+                    If you change email to one that exists in another company, you must also set a NEW password in the same update.
+                  </div>
 
                   <label className="text-sm text-white/70">Phone</label>
-                  <input className={input} value={editUser.phone || ""} onChange={(e) => setEditUser({ ...editUser, phone: e.target.value })} />
+                  <input
+                    className={input}
+                    value={editUser.phone || ""}
+                    onChange={(e) =>
+                      setEditUser({ ...editUser, phone: e.target.value })
+                    }
+                  />
 
                   <label className="text-sm text-white/70">Role</label>
-                  <select className={input} value={editUser.role || "STAFF"} onChange={(e) => setEditUser({ ...editUser, role: e.target.value as any })}>
+                  <select
+                    className={input}
+                    value={editUser.role || "STAFF"}
+                    onChange={(e) =>
+                      setEditUser({ ...editUser, role: e.target.value as any })
+                    }
+                  >
                     <option value="STAFF">Staff</option>
                     <option value="ADMIN">Admin</option>
                   </select>
 
-                  <label className="text-sm text-white/70">New Password (optional)</label>
-                  <input className={input} type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} />
+                  <label className="text-sm text-white/70">
+                    New Password (optional)
+                  </label>
+                  <input
+                    className={input}
+                    type="password"
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                  />
 
                   <div className="flex justify-end gap-2 mt-2">
-                    <button className={btnGhost} onClick={closeEdit}>Cancel</button>
-                    <button className={btnPrimary} onClick={saveEdit}>Save Changes</button>
+                    <button className={btnGhost} onClick={closeEdit}>
+                      Cancel
+                    </button>
+                    <button className={btnPrimary} onClick={saveEdit}>
+                      Save Changes
+                    </button>
                   </div>
                 </div>
 
@@ -367,7 +495,9 @@ export default function AdminUsersPage() {
                   <div className="max-h-[520px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">
                     <ModulePicker
                       value={(editUser.allowedModules || []) as AppModule[]}
-                      onChange={(mods) => setEditUser({ ...editUser, allowedModules: mods })}
+                      onChange={(mods) =>
+                        setEditUser({ ...editUser, allowedModules: mods })
+                      }
                     />
                   </div>
                   <div className="text-xs text-white/50 mt-2">
@@ -378,7 +508,6 @@ export default function AdminUsersPage() {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
