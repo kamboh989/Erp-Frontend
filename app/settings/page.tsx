@@ -40,7 +40,7 @@ export default function SettingsHome() {
           <div className="mt-4 h-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-400" />
         </Link>
 
-        <Link href="/settings/integrations/meta" className={card}>
+        <Link href="/settings/crm/meta" className={card}>
           <div className="text-sm font-semibold text-gray-900">Integrations — Meta Lead Ads</div>
           <div className="text-gray-500 text-sm mt-1">
             Connect Meta to auto-create leads.

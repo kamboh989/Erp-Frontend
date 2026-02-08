@@ -13,20 +13,18 @@ export async function GET(req: NextRequest) {
     requireModule(session, "CRM_LEADS");
     await connectDB();
 
-    const base: any = { companyId: session.companyId };
-    if (!isAdmin(session)) base.assignedTo = session.userId;
+    const base: any = { companyId: session.companyId, isDeleted: false };
+    if (!isAdmin(session)) base.assignedToIds = session.userId;
 
-    const [total, newLeads, converted] = await Promise.all([
+    const [total, newLeads, converted, inProgress] = await Promise.all([
       Lead.countDocuments(base),
       Lead.countDocuments({ ...base, status: "NEW" }),
       Lead.countDocuments({ ...base, status: "CONVERTED" }),
+      Lead.countDocuments({
+        ...base,
+        status: { $in: ["CONTACTED", "FOLLOW_UP", "INTERESTED"] },
+      }),
     ]);
-
-    // In Progress = CONTACTED + FOLLOW_UP + INTERESTED
-    const inProgress = await Lead.countDocuments({
-      ...base,
-      status: { $in: ["CONTACTED", "FOLLOW_UP", "INTERESTED"] },
-    });
 
     return NextResponse.json({ total, newLeads, inProgress, converted });
   } catch (err) {

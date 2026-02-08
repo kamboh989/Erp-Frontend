@@ -31,8 +31,20 @@ const LeadSchema = new Schema(
     },
 
     // workflow
-    status: { type: String, enum: ["NEW", "CONTACTED", "FOLLOW_UP", "INTERESTED", "CONVERTED", "LOST"], default: "NEW", index: true },
-    assignedTo: { type: Schema.Types.ObjectId, ref: "CompanyUser", default: null, index: true },
+    status: {
+      type: String,
+      enum: ["NEW", "CONTACTED", "FOLLOW_UP", "INTERESTED", "CONVERTED", "LOST"],
+      default: "NEW",
+      index: true,
+    },
+
+    // ✅ MULTI-ASSIGN (replaces assignedTo)
+    assignedToIds: { type: [Schema.Types.ObjectId], ref: "CompanyUser", default: [], index: true },
+
+    // ✅ FOLLOW-UP (professional minimal)
+    nextFollowUpAt: { type: Date, default: null },
+    followUpType: { type: String, enum: ["CALL", "MEETING", "WHATSAPP", "EMAIL"], default: "CALL" },
+    followUpNote: { type: String, default: "" },
 
     // system fields
     createdBy: { type: String, enum: ["SYSTEM", "USER"], required: true },
@@ -40,13 +52,21 @@ const LeadSchema = new Schema(
 
     activities: { type: [ActivitySchema], default: [] },
     lastActivityAt: { type: Date, default: null },
+
+    // ✅ SOFT DELETE
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+    deletedByUserId: { type: Schema.Types.ObjectId, ref: "CompanyUser", default: null },
   },
   { timestamps: true }
 );
 
+LeadSchema.index({ companyId: 1, createdAt: -1 });
+LeadSchema.index({ companyId: 1, isDeleted: 1, createdAt: -1 });
 LeadSchema.index({ companyId: 1, phone: 1 });
 LeadSchema.index({ companyId: 1, email: 1 });
-LeadSchema.index({ companyId: 1, createdAt: -1 });
+LeadSchema.index({ companyId: 1, "meta.leadgenId": 1 }, { unique: true, sparse: true });
+
 
 export type LeadDoc = InferSchemaType<typeof LeadSchema>;
 export default mongoose.models.Lead || mongoose.model("Lead", LeadSchema);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { requireCompanyAuth, requireModule, authErrorResponse } from "@/lib/auth";
+import { requireCompanyAuth, requireModule } from "@/lib/auth";
 import Lead from "@/models/Lead";
 import CompanyUser from "@/models/CompanyUser";
 
@@ -14,25 +14,28 @@ export async function GET(req: NextRequest) {
     requireModule(session, "CRM_LEADS");
     await connectDB();
 
-    const { searchParams } = new URL(req.url);
-    const status = searchParams.get("status") || "";
-    const q: any = { companyId: session.companyId };
+    const q: any = {
+      companyId: session.companyId,
+      isDeleted: false,
+    };
 
+    // staff sirf apni assigned leads dekhe
     if (!isAdmin(session)) {
-      q.assignedTo = session.userId;
+      q.assignedToIds = session.userId;
     }
 
-    if (status) q.status = status;
-
     const leads = await Lead.find(q)
-      .populate("assignedTo", "name email role isActive")
+      .populate("assignedToIds", "name email")
       .sort({ createdAt: -1 })
-      .limit(200)
       .lean();
 
     return NextResponse.json({ leads });
-  } catch (err) {
-    return authErrorResponse(err);
+  } catch (err: any) {
+    console.error("GET /api/crm/leads error:", err);
+    return NextResponse.json(
+      { error: "SERVER_ERROR", message: err.message },
+      { status: 500 }
+    );
   }
 }
 
@@ -43,7 +46,6 @@ export async function POST(req: NextRequest) {
     await connectDB();
 
     const body = await req.json();
-
     const admin = isAdmin(session);
 
     const name = String(body.name || "").trim() || "Unknown";
@@ -52,29 +54,25 @@ export async function POST(req: NextRequest) {
     const businessName = String(body.businessName || "").trim();
 
     if (!phone && !email) {
-      return NextResponse.json({ error: "PHONE_OR_EMAIL_REQUIRED" }, { status: 400 });
+      return NextResponse.json(
+        { error: "PHONE_OR_EMAIL_REQUIRED" },
+        { status: 400 }
+      );
     }
 
-    // assign logic:
-    let assignedTo: any = null;
+    let assignedToIds: any[] = [];
 
-    // staff can only assign to self
-    if (!admin) {
-      assignedTo = session.userId;
+    if (admin && Array.isArray(body.assignedToIds)) {
+      const users = await CompanyUser.find({
+        _id: { $in: body.assignedToIds },
+        companyId: session.companyId,
+        isActive: true,
+      }).select("_id");
+
+      assignedToIds = users.map((u) => u._id);
     } else {
-      // admin can choose
-      if (body.assignedTo) {
-        const u = await CompanyUser.findOne({
-          _id: body.assignedTo,
-          companyId: session.companyId,
-          isActive: true,
-          isOwner: { $ne: true },
-        }).select("_id").lean();
-
-        assignedTo = u?._id || null;
-      } else {
-        assignedTo = null; // allow unassigned
-      }
+      // staff / default → self assign
+      assignedToIds = [session.userId];
     }
 
     const lead = await Lead.create({
@@ -83,19 +81,26 @@ export async function POST(req: NextRequest) {
       phone,
       email,
       businessName,
+
       source: "MANUAL",
       status: "NEW",
-      assignedTo,
+
+      assignedToIds,
+
       createdBy: "USER",
       createdByUserId: session.userId,
     });
 
     const populated = await Lead.findById(lead._id)
-      .populate("assignedTo", "name email role isActive")
+      .populate("assignedToIds", "name email")
       .lean();
 
     return NextResponse.json({ lead: populated }, { status: 201 });
-  } catch (err) {
-    return authErrorResponse(err);
+  } catch (err: any) {
+    console.error("POST /api/crm/leads error:", err);
+    return NextResponse.json(
+      { error: "SERVER_ERROR", message: err.message },
+      { status: 500 }
+    );
   }
 }

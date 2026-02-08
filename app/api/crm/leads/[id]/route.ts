@@ -12,30 +12,49 @@ import CrmSettings from "@/models/CrmSettings";
 function isAdmin(session: any) {
   return Boolean(session?.isOwner) || session?.role === "ADMIN";
 }
+function isOwner(session: any) {
+  return Boolean(session?.isOwner);
+}
 
-const ALLOWED_STATUS = ["NEW", "CONTACTED", "FOLLOW_UP", "INTERESTED", "CONVERTED", "LOST"] as const;
+const ALLOWED_STATUS = [
+  "NEW",
+  "CONTACTED",
+  "FOLLOW_UP",
+  "INTERESTED",
+  "CONVERTED",
+  "LOST",
+] as const;
+
+const ALLOWED_FOLLOWUP = ["CALL", "MEETING", "WHATSAPP", "EMAIL"] as const;
 
 export async function GET(
   req: NextRequest,
-  ctx: { params: Promise<{ id: string }> } // ✅ params can be Promise
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireCompanyAuth(req);
     requireModule(session, "CRM_LEADS");
     await connectDB();
 
-    const { id } = await ctx.params; // ✅ unwrap
-    const lead = await Lead.findOne({ _id: id, companyId: session.companyId })
-      .populate("assignedTo", "name email role isActive")
+    const { id } = await ctx.params;
+
+    // ✅ HARD DELETE FLOW: no isDeleted filter
+    const lead = await Lead.findOne({
+      _id: id,
+      companyId: session.companyId,
+    })
+      .populate("assignedToIds", "name email role isActive")
       .lean();
 
     if (!lead) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
+    // ✅ staff can view only if assigned
     if (!isAdmin(session)) {
-      const ownerId = String((lead as any).assignedTo?._id || "");
-      if (ownerId !== String(session.userId)) {
-        return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
-      }
+      const ids = (lead as any).assignedToIds || [];
+      const ok = ids.some(
+        (u: any) => String(u?._id || u) === String(session.userId)
+      );
+      if (!ok) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
     return NextResponse.json({ lead });
@@ -46,38 +65,49 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  ctx: { params: Promise<{ id: string }> } // ✅ params can be Promise
+  ctx: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await requireCompanyAuth(req);
     requireModule(session, "CRM_LEADS");
     await connectDB();
 
-    const { id } = await ctx.params; // ✅ unwrap
+    const { id } = await ctx.params;
     const body = await req.json();
 
-    const lead = await Lead.findOne({ _id: id, companyId: session.companyId });
+    // ✅ HARD DELETE FLOW: no isDeleted filter
+    const lead = await Lead.findOne({
+      _id: id,
+      companyId: session.companyId,
+    });
     if (!lead) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
 
     const admin = isAdmin(session);
-    if (!admin && String(lead.assignedTo || "") !== String(session.userId)) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+
+    // ✅ staff can update only if assigned
+    if (!admin) {
+      const ok = (lead.assignedToIds || []).some(
+        (x: any) => String(x) === String(session.userId)
+      );
+      if (!ok) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
     }
 
-    // ✅ status update
+    // ✅ status update (staff allowed if assigned)
     if (body.status && ALLOWED_STATUS.includes(body.status)) {
       lead.status = body.status;
     }
 
-    // ✅ assign update (admin only)
-    if (body.assignedTo !== undefined) {
+    // ✅ multi-assign update (admin only)
+    if (body.assignedToIds !== undefined) {
       if (!admin) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
-      if (!body.assignedTo) {
-        lead.assignedTo = null;
+      const reqIds = Array.isArray(body.assignedToIds) ? body.assignedToIds : [];
+
+      if (!reqIds.length) {
+        lead.assignedToIds = [];
       } else {
-        const u = await CompanyUser.findOne({
-          _id: body.assignedTo,
+        const activeUsers = await CompanyUser.find({
+          _id: { $in: reqIds },
           companyId: session.companyId,
           isActive: true,
           isOwner: { $ne: true },
@@ -85,11 +115,39 @@ export async function PATCH(
           .select("_id")
           .lean();
 
-        lead.assignedTo = (u?._id as any) || null;
+        lead.assignedToIds = activeUsers.map((u) => u._id) as any;
       }
     }
 
-    // ✅ add note/activity + optional auto move
+    // ✅ follow-up update (staff allowed if assigned)
+    if (body.followUp !== undefined) {
+      const fu = body.followUp || {};
+
+      // nextFollowUpAt
+      if (fu.nextFollowUpAt) {
+        const dt = new Date(fu.nextFollowUpAt);
+        if (!isNaN(dt.getTime())) lead.nextFollowUpAt = dt;
+      } else if (fu.nextFollowUpAt === null) {
+        lead.nextFollowUpAt = null;
+      }
+
+      // followUpType
+      if (fu.followUpType && ALLOWED_FOLLOWUP.includes(fu.followUpType)) {
+        lead.followUpType = fu.followUpType;
+      }
+
+      // followUpNote
+      if (fu.followUpNote !== undefined) {
+        lead.followUpNote = String(fu.followUpNote || "");
+      }
+
+      // optional: if they set follow-up and status NEW, keep it in progress
+      if (lead.nextFollowUpAt && lead.status === "NEW") {
+        lead.status = "FOLLOW_UP";
+      }
+    }
+
+    // ✅ add note/activity (staff allowed if assigned)
     if (body.addNote) {
       const note = String(body.addNote || "").trim();
       if (note) {
@@ -102,22 +160,55 @@ export async function PATCH(
 
         lead.lastActivityAt = new Date();
 
-        const settings = await CrmSettings.findOne({ companyId: session.companyId }).lean();
-        const auto = settings?.autoMoveToContactedOnFirstActivity ?? true;
+        // auto move NEW → CONTACTED (from CRM settings)
+        const settings = await CrmSettings.findOne({
+          companyId: session.companyId,
+        }).lean();
 
-        if (auto && lead.status === "NEW") {
-          lead.status = "CONTACTED";
-        }
+        const auto = settings?.autoMoveToContactedOnFirstActivity ?? true;
+        if (auto && lead.status === "NEW") lead.status = "CONTACTED";
       }
     }
 
     await lead.save();
 
     const updated = await Lead.findById(lead._id)
-      .populate("assignedTo", "name email role isActive")
+      .populate("assignedToIds", "name email role isActive")
       .lean();
 
     return NextResponse.json({ lead: updated });
+  } catch (err) {
+    return authErrorResponse(err);
+  }
+}
+
+// ✅ OWNER ONLY DELETE (PERMANENT DELETE)
+export async function DELETE(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await requireCompanyAuth(req);
+    requireModule(session, "CRM_LEADS");
+    await connectDB();
+
+    // ✅ ONLY OWNER
+    if (!isOwner(session)) {
+      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    }
+
+    const { id } = await ctx.params;
+
+    const deleted = await Lead.findOneAndDelete({
+      _id: id,
+      companyId: session.companyId,
+    });
+
+    if (!deleted) {
+      return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
   } catch (err) {
     return authErrorResponse(err);
   }
