@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
-import Company from "@/models/Company_TMP";
+import Company from "@/models/Company";
 import CompanyUser from "@/models/CompanyUser";
 import { requireSuperAdmin } from "@/lib/superAuth";
 

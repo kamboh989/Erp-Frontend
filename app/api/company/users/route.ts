@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import CompanyUser from "@/models/CompanyUser";
-import Company from "@/models/Company_TMP";
+import Company from "@/models/Company";
 import { requireCompanyAuth } from "@/lib/auth";
 import { blockSamePasswordAcrossCompanies } from "@/lib/checkHelper";
 
