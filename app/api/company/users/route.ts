@@ -2,10 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import CompanyUser from "@/models/CompanyUser";
-import Company from "@/models/Company";
+import Company from "@/models/Company_TMP";
 import { requireCompanyAuth } from "@/lib/auth";
 import { blockSamePasswordAcrossCompanies } from "@/lib/checkHelper";
-
 
 function intersectAllowed(userMods: string[], enabledMods: string[]) {
   const set = new Set(enabledMods || []);
@@ -30,16 +29,29 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await requireCompanyAuth(req);
-  const { email, password, name, phone, role, allowedModules = [] } = await req.json();
+  const {
+    email,
+    password,
+    name,
+    phone,
+    role,
+    allowedModules = [],
+  } = await req.json();
 
   if (!email || !password || !name) {
-    return NextResponse.json({ error: "name/email/password required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "name/email/password required" },
+      { status: 400 },
+    );
   }
 
   await connectDB();
 
-  const company = await Company.findById(session.companyId).select("maxUsers enabledModules").lean();
-  if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
+  const company = await Company.findById(session.companyId)
+    .select("maxUsers enabledModules")
+    .lean();
+  if (!company)
+    return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
   // ✅ LIMIT: owner count nahi hoga
   const count = await CompanyUser.countDocuments({
@@ -64,7 +76,7 @@ export async function POST(req: NextRequest) {
   if (blocked) {
     return NextResponse.json(
       { error: "SAME_PASSWORD_NOT_ALLOWED_ACROSS_COMPANIES" },
-      { status: 409 }
+      { status: 409 },
     );
   }
 
@@ -78,7 +90,7 @@ export async function POST(req: NextRequest) {
 
   const finalModules = intersectAllowed(
     Array.isArray(allowedModules) ? allowedModules : [],
-    (company.enabledModules || []) as string[]
+    (company.enabledModules || []) as string[],
   );
 
   const passwordHash = await bcrypt.hash(p, 10);
@@ -97,14 +109,18 @@ export async function POST(req: NextRequest) {
       lockedBySuper: false,
     });
 
-    const safe = await CompanyUser.findById(user._id).select("-passwordHash").lean();
+    const safe = await CompanyUser.findById(user._id)
+      .select("-passwordHash")
+      .lean();
     return NextResponse.json({ user: safe }, { status: 201 });
   } catch (err: any) {
     // ✅ if same email inside same company due to unique index
     if (err?.code === 11000) {
-      return NextResponse.json({ error: "EMAIL_ALREADY_EXISTS_IN_COMPANY" }, { status: 409 });
+      return NextResponse.json(
+        { error: "EMAIL_ALREADY_EXISTS_IN_COMPANY" },
+        { status: 409 },
+      );
     }
     return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
   }
 }
-

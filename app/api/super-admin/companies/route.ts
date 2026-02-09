@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
-import Company from "@/models/Company";
+import Company from "@/models/Company_TMP";
 import CompanyUser from "@/models/CompanyUser";
 import { requireSuperAdmin } from "@/lib/superAuth";
 
@@ -31,15 +31,20 @@ export async function POST(req: NextRequest) {
   if (!finalName || !email || !password) {
     return NextResponse.json(
       { error: "companyName/email/password required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   await connectDB();
 
-  const exists = await Company.findOne({ email: String(email).toLowerCase() }).lean();
+  const exists = await Company.findOne({
+    email: String(email).toLowerCase(),
+  }).lean();
   if (exists) {
-    return NextResponse.json({ error: "Company email already exists" }, { status: 409 });
+    return NextResponse.json(
+      { error: "Company email already exists" },
+      { status: 409 },
+    );
   }
 
   const company = await Company.create({
@@ -58,11 +63,11 @@ export async function POST(req: NextRequest) {
     email: String(email).toLowerCase(),
     passwordHash,
     name: "Company Owner",
-    role: "ADMIN",          // ✅ ADD: owner ka role admin rahega
+    role: "ADMIN", // ✅ ADD: owner ka role admin rahega
     isOwner: true,
     isActive: true,
     allowedModules: enabledModules,
-    lockedBySuper: false,   // ✅ ADD: (agar aapne field add ki hai to)
+    lockedBySuper: false, // ✅ ADD: (agar aapne field add ki hai to)
   });
 
   return NextResponse.json({ company }, { status: 201 });

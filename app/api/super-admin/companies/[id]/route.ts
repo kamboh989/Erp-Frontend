@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
-import Company from "@/models/Company";
+import Company from "@/models/Company_TMP";
 import CompanyUser from "@/models/CompanyUser";
 import { requireSuperAdmin } from "@/lib/superAuth";
 
@@ -15,7 +15,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const body = await req.json();
 
   const company = await Company.findById(id);
-  if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
+  if (!company)
+    return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
   if (body.companyName !== undefined || body.businessName !== undefined) {
     const nextName = String(body.companyName ?? body.businessName).trim();
@@ -33,20 +34,27 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
     await CompanyUser.updateMany(
       { companyId: company._id },
-      { $set: { allowedModules: mods } }
+      { $set: { allowedModules: mods } },
     );
   }
 
   // email update (unique) + update owner email
   if (body.email !== undefined) {
     const newEmail = String(body.email).toLowerCase().trim();
-    const clash = await Company.findOne({ email: newEmail, _id: { $ne: company._id } }).lean();
-    if (clash) return NextResponse.json({ error: "Email already in use" }, { status: 409 });
+    const clash = await Company.findOne({
+      email: newEmail,
+      _id: { $ne: company._id },
+    }).lean();
+    if (clash)
+      return NextResponse.json(
+        { error: "Email already in use" },
+        { status: 409 },
+      );
 
     company.email = newEmail;
     await CompanyUser.updateOne(
       { companyId: company._id, isOwner: true },
-      { $set: { email: newEmail } }
+      { $set: { email: newEmail } },
     );
   }
 
@@ -55,16 +63,20 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (body.password !== undefined) {
     const nextPass = String(body.password || "").trim();
     if (nextPass.length < 4) {
-      return NextResponse.json({ error: "Password must be at least 4 chars" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Password must be at least 4 chars" },
+        { status: 400 },
+      );
     }
 
     const passwordHash = await bcrypt.hash(nextPass, 10);
     const result = await CompanyUser.updateOne(
       { companyId: company._id, isOwner: true },
-      { $set: { passwordHash } }
+      { $set: { passwordHash } },
     );
 
-    changedPassword = (result as any)?.modifiedCount > 0 || (result as any)?.matchedCount > 0;
+    changedPassword =
+      (result as any)?.modifiedCount > 0 || (result as any)?.matchedCount > 0;
   }
 
   await company.save();
@@ -79,7 +91,8 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const { email, password } = await req.json();
 
   const company = await Company.findById(id).lean();
-  if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
+  if (!company)
+    return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
   const owner = await CompanyUser.findOne({
     companyId: id,
@@ -87,10 +100,18 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
     email: String(email).toLowerCase(),
   }).lean();
 
-  if (!owner) return NextResponse.json({ error: "Confirm email/password invalid" }, { status: 401 });
+  if (!owner)
+    return NextResponse.json(
+      { error: "Confirm email/password invalid" },
+      { status: 401 },
+    );
 
   const ok = await bcrypt.compare(String(password), owner.passwordHash);
-  if (!ok) return NextResponse.json({ error: "Confirm email/password invalid" }, { status: 401 });
+  if (!ok)
+    return NextResponse.json(
+      { error: "Confirm email/password invalid" },
+      { status: 401 },
+    );
 
   await CompanyUser.deleteMany({ companyId: id });
   await Company.findByIdAndDelete(id);

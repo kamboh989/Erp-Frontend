@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import Company from "@/models/Company";
+import Company from "@/models/Company_TMP";
 import CompanyUser from "@/models/CompanyUser";
 
 const COOKIE_NAME = "erp_token";
@@ -99,11 +99,14 @@ export async function requireCompanyAuth(req: NextRequest) {
     .lean();
 
   if (!user?.isActive) throw new AuthError("UNAUTHORIZED", 401);
-  if (String(user.companyId) !== String(session.companyId)) throw new AuthError("UNAUTHORIZED", 401);
+  if (String(user.companyId) !== String(session.companyId))
+    throw new AuthError("UNAUTHORIZED", 401);
 
   // ✅ FINAL allowed = user.allowedModules ∩ company.enabledModules
   const enabled = new Set<string>((company.enabledModules || []) as string[]);
-  const finalAllowed = ((user.allowedModules || []) as string[]).filter((m) => enabled.has(m));
+  const finalAllowed = ((user.allowedModules || []) as string[]).filter((m) =>
+    enabled.has(m),
+  );
 
   // ✅ Return fresh session-like object (DB truth)
   return {

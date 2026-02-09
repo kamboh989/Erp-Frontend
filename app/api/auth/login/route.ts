@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
-import Company from "@/models/Company";
+import Company from "@/models/Company_TMP";
 import CompanyUser from "@/models/CompanyUser";
 import { setCompanyCookie } from "@/lib/auth";
 
@@ -9,7 +9,10 @@ export async function POST(req: NextRequest) {
   const { email, password, companyId } = await req.json();
 
   if (!email || !password) {
-    return NextResponse.json({ error: "email/password required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "email/password required" },
+      { status: 400 },
+    );
   }
 
   await connectDB();
@@ -24,9 +27,16 @@ export async function POST(req: NextRequest) {
   if (matches.length === 0) {
     // 2) FALLBACK: Company email (OWNER) - keep your old behavior if needed
     const company = await Company.findOne({ email: e }).lean();
-    if (!company) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    if (!company)
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 },
+      );
     if (company.isActive === false) {
-      return NextResponse.json({ error: "Company is inactive" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Company is inactive" },
+        { status: 403 },
+      );
     }
 
     const ownerUser = await CompanyUser.findOne({
@@ -36,14 +46,23 @@ export async function POST(req: NextRequest) {
     }).lean();
 
     if (!ownerUser) {
-      return NextResponse.json({ error: "Owner user not found in CompanyUser" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Owner user not found in CompanyUser" },
+        { status: 401 },
+      );
     }
 
     const ok = await bcrypt.compare(String(password), ownerUser.passwordHash);
-    if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    if (!ok)
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 },
+      );
 
     const enabled = new Set<string>((company.enabledModules || []) as string[]);
-    const allowed = ((ownerUser.allowedModules || []) as string[]).filter((m) => enabled.has(m));
+    const allowed = ((ownerUser.allowedModules || []) as string[]).filter((m) =>
+      enabled.has(m),
+    );
 
     const res = NextResponse.json({ ok: true, kind: "company_owner" });
 
@@ -62,7 +81,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 1) if email exists in multiple companies, and companyId not provided => ask user to pick
-  const uniqueCompanyIds = Array.from(new Set(matches.map((m) => String(m.companyId))));
+  const uniqueCompanyIds = Array.from(
+    new Set(matches.map((m) => String(m.companyId))),
+  );
 
   if (!companyId && uniqueCompanyIds.length > 1) {
     const companies = await Company.find({ _id: { $in: uniqueCompanyIds } })
@@ -78,7 +99,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { error: "MULTIPLE_COMPANIES", companies: activeCompanies },
-      { status: 409 }
+      { status: 409 },
     );
   }
 
@@ -94,21 +115,29 @@ export async function POST(req: NextRequest) {
     .sort({ isOwner: 1, createdAt: -1 })
     .lean();
 
-  if (!user) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  if (!user)
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
 
   const company = await Company.findById(user.companyId).lean();
-  if (!company) return NextResponse.json({ error: "COMPANY_NOT_FOUND" }, { status: 404 });
+  if (!company)
+    return NextResponse.json({ error: "COMPANY_NOT_FOUND" }, { status: 404 });
   if (company.isActive === false) {
     return NextResponse.json({ error: "Company is inactive" }, { status: 403 });
   }
 
   const ok = await bcrypt.compare(String(password), user.passwordHash);
-  if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  if (!ok)
+    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
 
   const enabled = new Set<string>((company.enabledModules || []) as string[]);
-  const allowed = ((user.allowedModules || []) as string[]).filter((m) => enabled.has(m));
+  const allowed = ((user.allowedModules || []) as string[]).filter((m) =>
+    enabled.has(m),
+  );
 
-  const res = NextResponse.json({ ok: true, kind: user.isOwner ? "company_owner" : "company_user" });
+  const res = NextResponse.json({
+    ok: true,
+    kind: user.isOwner ? "company_owner" : "company_user",
+  });
 
   setCompanyCookie(res, {
     userId: String(user._id),

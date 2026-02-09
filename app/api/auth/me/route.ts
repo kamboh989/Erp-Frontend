@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import Company from "@/models/Company";
+import Company from "@/models/Company_TMP";
 import CompanyUser from "@/models/CompanyUser";
 import { readCompanyCookie } from "@/lib/auth";
 
@@ -15,16 +15,20 @@ export async function GET(req: NextRequest) {
     .select("isActive enabledModules companyName")
     .lean();
 
-  if (!company?.isActive) return NextResponse.json({ session: null }, { status: 200 });
+  if (!company?.isActive)
+    return NextResponse.json({ session: null }, { status: 200 });
 
   const user = await CompanyUser.findById(s.userId)
     .select("isActive email name role isOwner allowedModules companyId")
     .lean();
 
-  if (!user?.isActive) return NextResponse.json({ session: null }, { status: 200 });
+  if (!user?.isActive)
+    return NextResponse.json({ session: null }, { status: 200 });
 
   const enabled = new Set<string>((company.enabledModules || []) as string[]);
-  const allowed = ((user.allowedModules || []) as string[]).filter((m) => enabled.has(m));
+  const allowed = ((user.allowedModules || []) as string[]).filter((m) =>
+    enabled.has(m),
+  );
 
   return NextResponse.json({
     session: {
