@@ -580,7 +580,9 @@ export default function LeadsPage() {
                 placeholder="e.g. Meeting Tuesday 3pm"
               />
 
-              
+              <div className="mt-2 text-xs text-gray-500">
+                Meeting fix / contact time set karo. Ye DB me save hota hai.
+              </div>
 
               <div className="h-4" />
 
@@ -744,7 +746,10 @@ export default function LeadsPage() {
               </button>
             </div>
 
-           
+            <div className="mt-3 text-xs text-gray-500">
+              Timestamp auto create hota hai. Source MANUAL auto set hota hai.
+              Status default NEW.
+            </div>
           </div>
         </div>
       )}

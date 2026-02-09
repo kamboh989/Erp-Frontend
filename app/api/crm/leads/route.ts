@@ -8,6 +8,7 @@ function isAdmin(session: any) {
   return Boolean(session?.isOwner) || session?.role === "ADMIN";
 }
 
+/* ---------------- GET ---------------- */
 export async function GET(req: NextRequest) {
   try {
     const session = await requireCompanyAuth(req);
@@ -19,7 +20,6 @@ export async function GET(req: NextRequest) {
       isDeleted: false,
     };
 
-    // staff sirf apni assigned leads dekhe
     if (!isAdmin(session)) {
       q.assignedToIds = session.userId;
     }
@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/* ---------------- POST ---------------- */
 export async function POST(req: NextRequest) {
   try {
     const session = await requireCompanyAuth(req);
@@ -71,10 +72,10 @@ export async function POST(req: NextRequest) {
 
       assignedToIds = users.map((u) => u._id);
     } else {
-      // staff / default → self assign
       assignedToIds = [session.userId];
     }
 
+    // ✅ IMPORTANT: MANUAL lead → no meta at all
     const lead = await Lead.create({
       companyId: session.companyId,
       name,
