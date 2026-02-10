@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db";
 import Company from "@/models/Company";
 import CompanyUser from "@/models/CompanyUser";
 
+
 const COOKIE_NAME = "erp_token";
 
 function getJwtSecret() {

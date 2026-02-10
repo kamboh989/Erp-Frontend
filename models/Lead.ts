@@ -9,12 +9,18 @@ const ActivitySchema = new Schema(
       required: true,
     },
     note: { type: String, default: "" },
-    byUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "CompanyUser",
-      default: null,
-    },
+    byUserId: { type: Schema.Types.ObjectId, ref: "CompanyUser", default: null },
     createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+/* ---------------- META (OPTIONAL SUBDOC) ---------------- */
+const LeadMetaSchema = new Schema(
+  {
+    pageId: { type: String },
+    formId: { type: String },
+    leadgenId: { type: String },
   },
   { _id: false }
 );
@@ -43,24 +49,13 @@ const LeadSchema = new Schema(
       index: true,
     },
 
-    // ✅ META (IMPORTANT FIX)
-    meta: {
-      pageId: { type: String, default: null },
-      formId: { type: String, default: null },
-      leadgenId: { type: String, default: null },
-    },
+    // ✅ OPTIONAL: MANUAL leads me meta save nahi hogi
+    meta: { type: LeadMetaSchema, default: undefined },
 
     // workflow
     status: {
       type: String,
-      enum: [
-        "NEW",
-        "CONTACTED",
-        "FOLLOW_UP",
-        "INTERESTED",
-        "CONVERTED",
-        "LOST",
-      ],
+      enum: ["NEW", "CONTACTED", "FOLLOW_UP", "INTERESTED", "CONVERTED", "LOST"],
       default: "NEW",
       index: true,
     },
@@ -83,16 +78,8 @@ const LeadSchema = new Schema(
     followUpNote: { type: String, default: "" },
 
     // system
-    createdBy: {
-      type: String,
-      enum: ["SYSTEM", "USER"],
-      required: true,
-    },
-    createdByUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "CompanyUser",
-      default: null,
-    },
+    createdBy: { type: String, enum: ["SYSTEM", "USER"], required: true },
+    createdByUserId: { type: Schema.Types.ObjectId, ref: "CompanyUser", default: null },
 
     activities: { type: [ActivitySchema], default: [] },
     lastActivityAt: { type: Date, default: null },
@@ -100,14 +87,29 @@ const LeadSchema = new Schema(
     // soft delete
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date, default: null },
-    deletedByUserId: {
-      type: Schema.Types.ObjectId,
-      ref: "CompanyUser",
-      default: null,
-    },
+    deletedByUserId: { type: Schema.Types.ObjectId, ref: "CompanyUser", default: null },
   },
   { timestamps: true }
 );
+
+/* ---------------- SAFE GUARD (IMPORTANT) ---------------- */
+// ✅ MANUAL => meta remove
+// ✅ META => if leadgenId missing/empty => meta remove
+LeadSchema.pre("validate", function () {
+  // @ts-ignore
+  if (this.source === "MANUAL") {
+    // @ts-ignore
+    this.meta = undefined;
+    return;
+  }
+
+  // @ts-ignore
+  const id = this.meta?.leadgenId;
+  if (!id || String(id).trim() === "") {
+    // @ts-ignore
+    this.meta = undefined;
+  }
+});
 
 /* ---------------- INDEXES ---------------- */
 LeadSchema.index({ companyId: 1, createdAt: -1 });
@@ -115,12 +117,21 @@ LeadSchema.index({ companyId: 1, isDeleted: 1, createdAt: -1 });
 LeadSchema.index({ companyId: 1, phone: 1 });
 LeadSchema.index({ companyId: 1, email: 1 });
 
-// ✅ UNIQUE only when leadgenId EXISTS (null ignored)
+/**
+ * ✅ IMPORTANT:
+ * Unique only when meta.leadgenId exists AND is a string (partial index).
+ * - MANUAL leads: meta missing => ignored
+ * - META leads: leadgenId present => unique enforced
+ */
 LeadSchema.index(
   { companyId: 1, "meta.leadgenId": 1 },
-  { unique: true, sparse: true }
+  {
+    unique: true,
+    partialFilterExpression: {
+      "meta.leadgenId": { $exists: true, $type: "string" },
+    },
+  }
 );
 
 export type LeadDoc = InferSchemaType<typeof LeadSchema>;
-export default mongoose.models.Lead ||
-  mongoose.model("Lead", LeadSchema);
+export default mongoose.models.Lead || mongoose.model("Lead", LeadSchema);

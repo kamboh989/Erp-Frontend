@@ -20,8 +20,9 @@ export async function GET(req: NextRequest) {
       isDeleted: false,
     };
 
+    // ✅ FIX: assignedToIds is ARRAY so use $in
     if (!isAdmin(session)) {
-      q.assignedToIds = session.userId;
+      q.assignedToIds = { $in: [session.userId] };
     }
 
     const leads = await Lead.find(q)
@@ -63,14 +64,16 @@ export async function POST(req: NextRequest) {
 
     let assignedToIds: any[] = [];
 
-    if (admin && Array.isArray(body.assignedToIds)) {
+    // ✅ Admin can assign multiple users (but must be valid and active)
+    if (admin && Array.isArray(body.assignedToIds) && body.assignedToIds.length) {
       const users = await CompanyUser.find({
         _id: { $in: body.assignedToIds },
         companyId: session.companyId,
         isActive: true,
       }).select("_id");
 
-      assignedToIds = users.map((u) => u._id);
+      // ✅ fallback if none valid
+      assignedToIds = users.length ? users.map((u) => u._id) : [session.userId];
     } else {
       assignedToIds = [session.userId];
     }
@@ -88,6 +91,9 @@ export async function POST(req: NextRequest) {
 
       assignedToIds,
 
+      // ✅ safety (ensure no meta saved for manual)
+      meta: undefined,
+
       createdBy: "USER",
       createdByUserId: session.userId,
     });
@@ -99,6 +105,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ lead: populated }, { status: 201 });
   } catch (err: any) {
     console.error("POST /api/crm/leads error:", err);
+
+    // ✅ Helpful duplicate response
+    if (err?.code === 11000) {
+      return NextResponse.json(
+        { error: "DUPLICATE_KEY", message: err.message },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json(
       { error: "SERVER_ERROR", message: err.message },
       { status: 500 }
