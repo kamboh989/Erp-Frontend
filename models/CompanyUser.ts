@@ -14,6 +14,9 @@ const CompanyUserSchema = new Schema(
 
     allowedModules: { type: [String], default: [] },
 
+      // ✅ NEW: per-user settings permission
+    allowedSettings: { type: [String], default: [] },
+
     isOwner: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
 

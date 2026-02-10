@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     password,
     phone,
     enabledModules = [],
+    enabledSettings = [], // ✅ NEW
     maxUsers = 1,
   } = await req.json();
 
@@ -52,6 +53,7 @@ export async function POST(req: NextRequest) {
     email: String(email).toLowerCase(),
     phone: String(phone || "").trim(),
     enabledModules,
+    enabledSettings, // ✅ NEW
     maxUsers: Number(maxUsers),
     isActive: true,
   });
@@ -63,11 +65,12 @@ export async function POST(req: NextRequest) {
     email: String(email).toLowerCase(),
     passwordHash,
     name: "Company Owner",
-    role: "ADMIN", // ✅ ADD: owner ka role admin rahega
+    role: "ADMIN",
     isOwner: true,
     isActive: true,
     allowedModules: enabledModules,
-    lockedBySuper: false, // ✅ ADD: (agar aapne field add ki hai to)
+    allowedSettings: enabledSettings, // ✅ NEW
+    lockedBySuper: false,
   });
 
   return NextResponse.json({ company }, { status: 201 });

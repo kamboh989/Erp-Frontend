@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import Company from "@/models/Company";
 import CompanyUser from "@/models/CompanyUser";
-
+import type { AppSetting } from "@/types/settings";
 
 const COOKIE_NAME = "erp_token";
 
@@ -27,7 +27,11 @@ export type CompanySession = {
 
   role: CompanyRole;
   isOwner: boolean;
+
   allowedModules: string[];
+
+  // ✅ NEW: Settings permissions (per-user) trimmed by company subscription
+  allowedSettings: AppSetting[];
 };
 
 export type AuthErrorCode = "UNAUTHORIZED" | "NO_MODULE_ACCESS" | "FORBIDDEN";
@@ -88,15 +92,17 @@ export async function requireCompanyAuth(req: NextRequest) {
 
   await connectDB();
 
-  // ✅ add companyName in select
+  // ✅ add enabledSettings in select
   const company = await Company.findById(session.companyId)
-    .select("isActive enabledModules companyName")
+    .select("isActive enabledModules enabledSettings companyName")
     .lean();
 
   if (!company?.isActive) throw new AuthError("UNAUTHORIZED", 401);
 
   const user = await CompanyUser.findById(session.userId)
-    .select("isActive companyId email name role isOwner allowedModules")
+    .select(
+      "isActive companyId email name role isOwner allowedModules allowedSettings",
+    )
     .lean();
 
   if (!user?.isActive) throw new AuthError("UNAUTHORIZED", 401);
@@ -109,22 +115,47 @@ export async function requireCompanyAuth(req: NextRequest) {
     enabled.has(m),
   );
 
+  // ✅ FINAL settings = user.allowedSettings ∩ company.enabledSettings
+  const enabledSettings = new Set<string>(
+    (((company as any).enabledSettings || []) as string[]) || [],
+  );
+
+  let finalAllowedSettings = (((user as any).allowedSettings || []) as string[])
+    .filter((s) => enabledSettings.has(s)) as AppSetting[];
+
+  // optional gate: agar SETTINGS module hi allow nahi, to settings empty
+  if (!finalAllowed.includes("SETTINGS")) {
+    finalAllowedSettings = [];
+  }
+
   // ✅ Return fresh session-like object (DB truth)
   return {
     userId: String(user._id),
     companyId: String(user.companyId),
     email: user.email,
     name: user.name || "",
-    companyName: (company as any).companyName || "", // ✅ NEW
+    companyName: (company as any).companyName || "",
     role: (user.role || "STAFF") as CompanyRole,
     isOwner: Boolean(user.isOwner),
     allowedModules: finalAllowed,
+    allowedSettings: finalAllowedSettings,
   } satisfies CompanySession;
 }
 
 export function requireModule(session: CompanySession, moduleKey: string) {
   if (!session.allowedModules?.includes(moduleKey)) {
     throw new AuthError("NO_MODULE_ACCESS", 403, "No module access");
+  }
+}
+
+export function requireSetting(session: CompanySession, settingKey: AppSetting) {
+  // Optional: settings module must exist
+  if (!session.allowedModules?.includes("SETTINGS")) {
+    throw new AuthError("NO_MODULE_ACCESS", 403, "Settings module not allowed");
+  }
+
+  if (!session.allowedSettings?.includes(settingKey)) {
+    throw new AuthError("FORBIDDEN", 403, "No setting access");
   }
 }
 

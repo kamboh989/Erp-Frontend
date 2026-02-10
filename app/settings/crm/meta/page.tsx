@@ -1,21 +1,30 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ForbiddenCard from "@/app/components/forbidden-card";
 
 type PageItem = { id: string; name: string; access_token: string };
 type FormItem = { id: string; name: string; status?: string };
 
 const card = "rounded-2xl border border-black/10 bg-white p-5 shadow-sm";
-const btn = "rounded-xl px-4 py-2 text-sm font-semibold bg-gradient-to-r from-blue-700 to-indigo-500 text-white hover:shadow-lg transition";
-const btnGhost = "rounded-xl px-4 py-2 text-sm font-semibold border border-black/10 bg-white hover:bg-black/5 transition";
-const input = "w-full rounded-xl border border-black/10 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200";
+const btn =
+  "rounded-xl px-4 py-2 text-sm font-semibold bg-gradient-to-r from-blue-700 to-indigo-500 text-white hover:shadow-lg transition";
+const btnGhost =
+  "rounded-xl px-4 py-2 text-sm font-semibold border border-black/10 bg-white hover:bg-black/5 transition";
+const input =
+  "w-full rounded-xl border border-black/10 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200";
 
 export default function MetaSettingsPage() {
+  const [forbidden, setForbidden] = useState(false);
+
   const [connected, setConnected] = useState(false);
 
   const [pages, setPages] = useState<PageItem[]>([]);
   const [pageId, setPageId] = useState("");
-  const selectedPage = useMemo(() => pages.find(p => p.id === pageId), [pages, pageId]);
+  const selectedPage = useMemo(
+    () => pages.find((p) => p.id === pageId),
+    [pages, pageId],
+  );
 
   const [forms, setForms] = useState<FormItem[]>([]);
   const [selectedForms, setSelectedForms] = useState<string[]>([]);
@@ -35,33 +44,46 @@ export default function MetaSettingsPage() {
   }
 
   async function loadForms(pid: string, token: string) {
-  setLoadingForms(true);
+    setLoadingForms(true);
 
-  const r = await fetch("/api/meta/forms", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ pageId: pid, pageToken: token }),
-  });
+    const r = await fetch("/api/meta/forms", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ pageId: pid, pageToken: token }),
+    });
 
-  const j = await r.json();
-  if (!r.ok) {
-    console.log("forms error:", j);
-    alert(j?.message || j?.error || "Forms load failed");
+    const j = await r.json();
+    if (!r.ok) {
+      console.log("forms error:", j);
+      alert(j?.message || j?.error || "Forms load failed");
+      setLoadingForms(false);
+      return;
+    }
+
+    setForms(j.forms || []);
     setLoadingForms(false);
-    return;
   }
 
-  setForms(j.forms || []);
-  setLoadingForms(false);
-}
-
   useEffect(() => {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("connected") === "1") {
-      setConnected(true);
-      loadPages();
-    }
+    (async () => {
+      const me = await fetch("/api/auth/me", {
+        cache: "no-store",
+        credentials: "include",
+      }).then((r) => r.json());
+
+      const s = me?.session;
+      if (!s?.allowedSettings?.includes("SETTINGS_META")) {
+        setForbidden(true);
+        return;
+      }
+
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("connected") === "1") {
+        setConnected(true);
+        loadPages();
+      }
+    })();
   }, []);
 
   async function save() {
@@ -82,6 +104,15 @@ export default function MetaSettingsPage() {
     alert("Meta connected ✅");
   }
 
+  if (forbidden) {
+    return (
+      <ForbiddenCard
+        title="Forbidden"
+        message="Meta settings are not assigned to your role."
+      />
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-4">
       <div className={card}>
@@ -94,7 +125,11 @@ export default function MetaSettingsPage() {
           <a className={btn} href="/api/meta/oauth/start">
             Connect Meta
           </a>
-          <button className={btnGhost} onClick={loadPages} disabled={!connected || loadingPages}>
+          <button
+            className={btnGhost}
+            onClick={loadPages}
+            disabled={!connected || loadingPages}
+          >
             {loadingPages ? "Loading Pages..." : "Load Pages"}
           </button>
         </div>
@@ -105,7 +140,9 @@ export default function MetaSettingsPage() {
       </div>
 
       <div className={card}>
-        <div className="text-lg font-semibold text-gray-900 mb-3">1) Select Page</div>
+        <div className="text-lg font-semibold text-gray-900 mb-3">
+          1) Select Page
+        </div>
 
         <select
           className={input}
@@ -115,35 +152,44 @@ export default function MetaSettingsPage() {
             setPageId(id);
             setSelectedForms([]);
             setForms([]);
-            const p = pages.find(x => x.id === id);
+            const p = pages.find((x) => x.id === id);
             if (p) await loadForms(p.id, p.access_token);
           }}
         >
           <option value="">Select a Page</option>
-          {pages.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+          {pages.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
           ))}
         </select>
 
-        {loadingForms && <div className="text-sm text-gray-500 mt-2">Loading forms...</div>}
+        {loadingForms && (
+          <div className="text-sm text-gray-500 mt-2">Loading forms...</div>
+        )}
       </div>
 
       <div className={card}>
-        <div className="text-lg font-semibold text-gray-900 mb-3">2) Select Forms</div>
+        <div className="text-lg font-semibold text-gray-900 mb-3">
+          2) Select Forms
+        </div>
 
         <div className="space-y-2">
-          {forms.map(f => {
+          {forms.map((f) => {
             const has = selectedForms.includes(f.id);
             return (
-              <label key={f.id} className="flex items-center gap-2 text-sm text-gray-800">
+              <label
+                key={f.id}
+                className="flex items-center gap-2 text-sm text-gray-800"
+              >
                 <input
                   type="checkbox"
                   checked={has}
                   onChange={(e) => {
-                    setSelectedForms(prev =>
+                    setSelectedForms((prev) =>
                       e.target.checked
                         ? Array.from(new Set([...prev, f.id]))
-                        : prev.filter(x => x !== f.id)
+                        : prev.filter((x) => x !== f.id),
                     );
                   }}
                 />
@@ -152,7 +198,9 @@ export default function MetaSettingsPage() {
               </label>
             );
           })}
-          {forms.length === 0 && <div className="text-sm text-gray-500">No forms loaded yet.</div>}
+          {forms.length === 0 && (
+            <div className="text-sm text-gray-500">No forms loaded yet.</div>
+          )}
         </div>
 
         <div className="mt-4 flex justify-end">

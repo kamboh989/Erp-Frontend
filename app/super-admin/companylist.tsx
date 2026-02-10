@@ -2,7 +2,9 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import ModulePicker from "@/app/components/module-picker";
+import SettingPicker from "@/app/components/setting-picker";
 import type { AppModule } from "@/types/modules";
+import type { AppSetting } from "@/types/settings";
 
 type Company = {
   _id: string;
@@ -10,6 +12,7 @@ type Company = {
   email: string;
   phone?: string;
   enabledModules: AppModule[];
+  enabledSettings: AppSetting[]; // ✅ NEW
   maxUsers: number;
   isActive: boolean;
   createdAt?: string;
@@ -22,15 +25,19 @@ type CompanyUser = {
   isOwner?: boolean;
   isActive?: boolean;
   allowedModules?: AppModule[];
+  allowedSettings?: AppSetting[]; // ✅ NEW
   createdAt?: string;
   lockedBySuper?: boolean;
 };
 
 const card = "rounded-2xl border border-white/10 bg-white/5 p-5 shadow-xl";
-const btnPrimary = "rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-2 text-sm font-semibold";
+const btnPrimary =
+  "rounded-xl bg-blue-600 hover:bg-blue-500 px-4 py-2 text-sm font-semibold";
 const btnGhost = "rounded-xl bg-white/10 hover:bg-white/15 px-4 py-2 text-sm";
-const btnDanger = "rounded-xl bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-semibold";
-const input = "rounded-xl bg-black/30 border border-white/10 px-3 py-2 outline-none focus:border-blue-500";
+const btnDanger =
+  "rounded-xl bg-red-600 hover:bg-red-500 px-4 py-2 text-sm font-semibold";
+const input =
+  "rounded-xl bg-black/30 border border-white/10 px-3 py-2 outline-none focus:border-blue-500";
 
 export default function SuperAdminCompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -42,7 +49,15 @@ export default function SuperAdminCompaniesPage() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [maxUsers, setMaxUsers] = useState<number>(3);
-  const [enabledModules, setEnabledModules] = useState<AppModule[]>(["DASHBOARD"]);
+  const [enabledModules, setEnabledModules] = useState<AppModule[]>([
+    "DASHBOARD",
+  ]);
+
+  // ✅ NEW settings subscription
+  const [enabledSettings, setEnabledSettings] = useState<AppSetting[]>([
+    "SETTINGS_CRM",
+    "SETTINGS_META",
+  ]);
 
   // edit modal
   const [editOpen, setEditOpen] = useState(false);
@@ -51,7 +66,7 @@ export default function SuperAdminCompaniesPage() {
 
   // expand company users
   const [openUsersFor, setOpenUsersFor] = useState<string | null>(null);
-  const [companyOwner, setCompanyOwner] = useState<CompanyUser | null>(null); // ✅ NEW
+  const [companyOwner, setCompanyOwner] = useState<CompanyUser | null>(null);
   const [companyUsers, setCompanyUsers] = useState<CompanyUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -63,7 +78,9 @@ export default function SuperAdminCompaniesPage() {
     const r = await fetch("/api/super-admin/companies", { cache: "no-store" });
     const text = await r.text();
     let j: any = {};
-    try { j = JSON.parse(text); } catch {}
+    try {
+      j = JSON.parse(text);
+    } catch {}
     if (!r.ok) {
       console.log("GET companies failed:", r.status, text);
       alert(j?.error || `Load failed (${r.status})`);
@@ -74,7 +91,9 @@ export default function SuperAdminCompaniesPage() {
     setLoading(false);
   }
 
-  useEffect(() => { loadCompanies(); }, []);
+  useEffect(() => {
+    loadCompanies();
+  }, []);
 
   async function createCompany() {
     if (!companyName.trim()) return alert("Company name required");
@@ -90,13 +109,16 @@ export default function SuperAdminCompaniesPage() {
         password,
         phone: phone.trim(),
         enabledModules,
+        enabledSettings, // ✅ NEW
         maxUsers,
       }),
     });
 
     const text = await r.text();
     let j: any = {};
-    try { j = JSON.parse(text); } catch {}
+    try {
+      j = JSON.parse(text);
+    } catch {}
 
     if (!r.ok) {
       console.log("CREATE company failed:", r.status, text);
@@ -111,10 +133,15 @@ export default function SuperAdminCompaniesPage() {
     setPhone("");
     setMaxUsers(3);
     setEnabledModules(["DASHBOARD"]);
+    setEnabledSettings(["SETTINGS_CRM", "SETTINGS_META"]);
   }
 
   function openEdit(c: Company) {
-    setEditCompany({ ...c, enabledModules: (c.enabledModules || []) as AppModule[] });
+    setEditCompany({
+      ...c,
+      enabledModules: (c.enabledModules || []) as AppModule[],
+      enabledSettings: (c.enabledSettings || []) as AppSetting[],
+    });
     setEditPassword("");
     setEditOpen(true);
     document.body.style.overflow = "hidden";
@@ -136,6 +163,7 @@ export default function SuperAdminCompaniesPage() {
       phone: editCompany.phone,
       maxUsers: editCompany.maxUsers,
       enabledModules: editCompany.enabledModules,
+      enabledSettings: editCompany.enabledSettings, // ✅ NEW
       isActive: editCompany.isActive,
       ...(editPassword.trim() ? { password: editPassword.trim() } : {}),
     };
@@ -148,12 +176,14 @@ export default function SuperAdminCompaniesPage() {
 
     const text = await r.text();
     let j: any = {};
-    try { j = JSON.parse(text); } catch {}
+    try {
+      j = JSON.parse(text);
+    } catch {}
 
     if (!r.ok) return alert(j?.error || `Failed (${r.status})`);
 
     setCompanies((prev) =>
-      prev.map((x) => (x._id === editCompany._id ? (j.company as Company) : x))
+      prev.map((x) => (x._id === editCompany._id ? (j.company as Company) : x)),
     );
 
     await loadCompanies();
@@ -171,7 +201,9 @@ export default function SuperAdminCompaniesPage() {
 
     const text = await r.text();
     let j: any = {};
-    try { j = JSON.parse(text); } catch {}
+    try {
+      j = JSON.parse(text);
+    } catch {}
 
     if (!r.ok) return alert(j?.error || `Failed (${r.status})`);
 
@@ -180,13 +212,19 @@ export default function SuperAdminCompaniesPage() {
   }
 
   async function strictDeleteCompany(c: Company) {
-    const confirmEmail = prompt("Confirm company EMAIL (exact) to delete permanently:");
+    const confirmEmail = prompt(
+      "Confirm company EMAIL (exact) to delete permanently:",
+    );
     if (!confirmEmail) return;
 
-    const confirmPassword = prompt("Confirm company PASSWORD to delete permanently:");
+    const confirmPassword = prompt(
+      "Confirm company PASSWORD to delete permanently:",
+    );
     if (!confirmPassword) return;
 
-    const ok = confirm("LAST WARNING: This will permanently delete company + its users. Continue?");
+    const ok = confirm(
+      "LAST WARNING: This will permanently delete company + its users. Continue?",
+    );
     if (!ok) return;
 
     setDeletingId(c._id);
@@ -200,7 +238,9 @@ export default function SuperAdminCompaniesPage() {
 
       const text = await r.text();
       let j: any = {};
-      try { j = JSON.parse(text); } catch {}
+      try {
+        j = JSON.parse(text);
+      } catch {}
 
       if (!r.ok) return alert(j?.error || `Delete failed (${r.status})`);
 
@@ -223,10 +263,14 @@ export default function SuperAdminCompaniesPage() {
   // ✅ NEW: owner + users separate
   async function loadCompanyUsers(companyId: string) {
     setUsersLoading(true);
-    const r = await fetch(`/api/super-admin/companies/${companyId}/users`, { cache: "no-store" });
+    const r = await fetch(`/api/super-admin/companies/${companyId}/users`, {
+      cache: "no-store",
+    });
     const text = await r.text();
     let j: any = {};
-    try { j = JSON.parse(text); } catch {}
+    try {
+      j = JSON.parse(text);
+    } catch {}
 
     if (!r.ok) {
       alert(j?.error || `Failed (${r.status})`);
@@ -242,19 +286,26 @@ export default function SuperAdminCompaniesPage() {
   async function toggleUserActive(companyId: string, user: CompanyUser) {
     const payload = { isActive: !user.isActive };
 
-    const r = await fetch(`/api/super-admin/companies/${companyId}/users/${user._id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const r = await fetch(
+      `/api/super-admin/companies/${companyId}/users/${user._id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
 
     const text = await r.text();
     let j: any = {};
-    try { j = JSON.parse(text); } catch {}
+    try {
+      j = JSON.parse(text);
+    } catch {}
 
     if (!r.ok) return alert(j?.error || `Failed (${r.status})`);
 
-    setCompanyUsers((prev) => prev.map((u) => (u._id === user._id ? j.user : u)));
+    setCompanyUsers((prev) =>
+      prev.map((u) => (u._id === user._id ? j.user : u)),
+    );
   }
 
   const sorted = useMemo(() => {
@@ -263,12 +314,12 @@ export default function SuperAdminCompaniesPage() {
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white p-6">
-      <div className="mx-auto max-w-7xl space-y-6">
+      <div className="mx-auto max-w-screen-2xl space-y-6">
         {/* header */}
         <div className="flex items-center justify-between">
           <div>
             <div className="text-2xl font-bold">Super Admin</div>
-            <div className="text-white/60 text-sm">Companies + Modules + Users</div>
+            <div className="text-white/60 text-sm">Companies + Modules + Settings + Users</div>
           </div>
           <button className={btnGhost} onClick={loadCompanies}>
             Refresh
@@ -289,7 +340,7 @@ export default function SuperAdminCompaniesPage() {
             </button>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-[1fr_1.6fr] gap-6">
             <div className="grid gap-3">
               <label className="text-sm text-white/70">Company Name</label>
               <input className={input} value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
@@ -312,10 +363,22 @@ export default function SuperAdminCompaniesPage() {
               </div>
             </div>
 
-            <div>
-              <div className="text-sm font-semibold mb-2">Enabled Modules (Company Subscription)</div>
-              <div className="max-h-[340px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">
-                <ModulePicker value={enabledModules} onChange={setEnabledModules} />
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm font-semibold mb-2">Enabled Modules (Company Subscription)</div>
+                <div className="max-h-[260px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">
+                  <ModulePicker value={enabledModules} onChange={setEnabledModules} />
+                </div>
+              </div>
+
+              <div>
+                <div className="text-sm font-semibold mb-2">Enabled Settings (Company Subscription)</div>
+                <div className="max-h-[520px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-4">
+                  <SettingPicker value={enabledSettings} onChange={setEnabledSettings} />
+                </div>
+                <div className="text-xs text-white/50 mt-2">
+                  Settings pages/cards wahi show honge jo yahan enabled hon.
+                </div>
               </div>
             </div>
           </div>
@@ -334,13 +397,14 @@ export default function SuperAdminCompaniesPage() {
             <div className="text-white/60">Loading...</div>
           ) : (
             <div className="overflow-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[1400px]">
                 <thead className="text-white/60">
                   <tr className="border-b border-white/10">
                     <th className="py-3 text-left">Company</th>
                     <th className="py-3 text-left">Email / Phone</th>
                     <th className="py-3 text-left">Users</th>
                     <th className="py-3 text-left">Modules</th>
+                    <th className="py-3 text-left">Settings</th>
                     <th className="py-3 text-left">Status</th>
                     <th className="py-3 text-right">Actions</th>
                   </tr>
@@ -356,11 +420,10 @@ export default function SuperAdminCompaniesPage() {
                           <div className="text-white/60 text-xs">{c.phone || "—"}</div>
                         </td>
 
-                        {/* ✅ maxUsers shows extra users limit */}
                         <td className="py-3 text-white/80">{c.maxUsers}</td>
 
                         <td className="py-3">
-                          <div className="flex flex-wrap gap-1 max-w-[520px]">
+                          <div className="flex flex-wrap gap-1 max-w-[420px]">
                             {(c.enabledModules || []).map((m) => (
                               <span key={m} className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10">
                                 {m}
@@ -368,6 +431,19 @@ export default function SuperAdminCompaniesPage() {
                             ))}
                             {(c.enabledModules || []).length === 0 && (
                               <span className="text-xs text-white/50">No modules</span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-3">
+                          <div className="flex flex-wrap gap-1 max-w-[420px]">
+                            {(c.enabledSettings || []).map((s) => (
+                              <span key={s} className="text-xs px-2 py-1 rounded-full bg-white/10 border border-white/10">
+                                {s}
+                              </span>
+                            ))}
+                            {(c.enabledSettings || []).length === 0 && (
+                              <span className="text-xs text-white/50">No settings</span>
                             )}
                           </div>
                         </td>
@@ -421,7 +497,7 @@ export default function SuperAdminCompaniesPage() {
 
                       {openUsersFor === c._id && (
                         <tr className="border-b border-white/10 bg-black/20">
-                          <td colSpan={6} className="py-4">
+                          <td colSpan={7} className="py-4">
                             <div className="flex items-center justify-between mb-3">
                               <div className="font-semibold">Users of {c.companyName}</div>
                               <button className={btnGhost} onClick={() => loadCompanyUsers(c._id)}>
@@ -433,7 +509,6 @@ export default function SuperAdminCompaniesPage() {
                               <div className="text-white/60">Loading users...</div>
                             ) : (
                               <div className="space-y-3">
-                                {/* ✅ Owner separate */}
                                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
                                   <div className="text-sm font-semibold mb-2">Company Owner</div>
                                   {companyOwner ? (
@@ -451,7 +526,6 @@ export default function SuperAdminCompaniesPage() {
                                   )}
                                 </div>
 
-                                {/* ✅ Non-owner users table */}
                                 <div className="overflow-auto">
                                   <table className="w-full text-sm">
                                     <thead className="text-white/60">
@@ -517,7 +591,7 @@ export default function SuperAdminCompaniesPage() {
 
                   {sorted.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="py-6 text-white/60">No companies found.</td>
+                      <td colSpan={7} className="py-6 text-white/60">No companies found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -529,7 +603,7 @@ export default function SuperAdminCompaniesPage() {
         {/* Edit Modal */}
         {editOpen && editCompany && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-            <div className="w-full max-w-4xl rounded-2xl border border-white/10 bg-[#0B0F19] p-5 max-h-[85vh] overflow-y-auto">
+            <div className="w-full max-w-5xl rounded-2xl border border-white/10 bg-[#0B0F19] p-5 max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <div className="text-lg font-semibold">Edit Company</div>
                 <button className={btnGhost} onClick={closeEdit}>Close</button>
@@ -549,11 +623,9 @@ export default function SuperAdminCompaniesPage() {
                   <label className="text-sm text-white/70">Phone</label>
                   <input className={input} value={editCompany.phone || ""} onChange={(e) => setEditCompany({ ...editCompany, phone: e.target.value })} />
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-2">
-                      <label className="text-sm text-white/70">Max Users</label>
-                      <input className={input} type="number" min={1} value={editCompany.maxUsers} onChange={(e) => setEditCompany({ ...editCompany, maxUsers: Number(e.target.value) })} />
-                    </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm text-white/70">Max Users</label>
+                    <input className={input} type="number" min={1} value={editCompany.maxUsers} onChange={(e) => setEditCompany({ ...editCompany, maxUsers: Number(e.target.value) })} />
                   </div>
 
                   <label className="text-sm text-white/70">Company Status</label>
@@ -568,17 +640,31 @@ export default function SuperAdminCompaniesPage() {
                   </div>
                 </div>
 
-                <div>
-                  <div className="text-sm font-semibold mb-2">Enabled Modules</div>
-                  <div className="max-h-[520px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">
-                    <ModulePicker
-                      value={(editCompany.enabledModules || []) as AppModule[]}
-                      onChange={(mods) => setEditCompany({ ...editCompany, enabledModules: mods })}
-                    />
+                <div className="space-y-4">
+                  <div>
+                    <div className="text-sm font-semibold mb-2">Enabled Modules</div>
+                    <div className="max-h-[260px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <ModulePicker
+                        value={(editCompany.enabledModules || []) as AppModule[]}
+                        onChange={(mods) => setEditCompany({ ...editCompany, enabledModules: mods })}
+                      />
+                    </div>
+                    <div className="text-xs text-white/50 mt-2">
+                      Modules change karne se CompanyUser.allowedModules auto-sync hoga (backend me).
+                    </div>
                   </div>
 
-                  <div className="text-xs text-white/50 mt-2">
-                    Modules change karne se CompanyUser.allowedModules auto-sync hoga (backend me).
+                  <div>
+                    <div className="text-sm font-semibold mb-2">Enabled Settings</div>
+                    <div className="max-h-[260px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">
+                      <SettingPicker
+                        value={(editCompany.enabledSettings || []) as AppSetting[]}
+                        onChange={(s) => setEditCompany({ ...editCompany, enabledSettings: s })}
+                      />
+                    </div>
+                    <div className="text-xs text-white/50 mt-2">
+                      Settings change karne se CompanyUser.allowedSettings auto-sync hoga (backend me).
+                    </div>
                   </div>
                 </div>
               </div>
@@ -590,4 +676,3 @@ export default function SuperAdminCompaniesPage() {
     </div>
   );
 }
-

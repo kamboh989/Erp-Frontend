@@ -32,6 +32,17 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const mods = Array.isArray(body.enabledModules) ? body.enabledModules : [];
     company.enabledModules = mods;
 
+    // ✅ enabledSettings update + sync to ALL users
+  if (body.enabledSettings !== undefined) {
+    const s = Array.isArray(body.enabledSettings) ? body.enabledSettings : [];
+    (company as any).enabledSettings = s;
+
+    await CompanyUser.updateMany(
+      { companyId: (company as any)._id },
+      { $set: { allowedSettings: s } },
+    );
+  }
+
     await CompanyUser.updateMany(
       { companyId: company._id },
       { $set: { allowedModules: mods } },

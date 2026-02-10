@@ -11,6 +11,12 @@ function intersectAllowed(userMods: string[], enabledMods: string[]) {
   return (userMods || []).filter((m) => set.has(m));
 }
 
+// ✅ NEW
+function intersectAllowedSettings(userSettings: string[], enabledSettings: string[]) {
+  const set = new Set(enabledSettings || []);
+  return (userSettings || []).filter((s) => set.has(s));
+}
+
 export async function GET(req: NextRequest) {
   const session = await requireCompanyAuth(req);
   await connectDB();
@@ -36,6 +42,7 @@ export async function POST(req: NextRequest) {
     phone,
     role,
     allowedModules = [],
+    allowedSettings = [], // ✅ NEW
   } = await req.json();
 
   if (!email || !password || !name) {
@@ -48,7 +55,7 @@ export async function POST(req: NextRequest) {
   await connectDB();
 
   const company = await Company.findById(session.companyId)
-    .select("maxUsers enabledModules")
+    .select("maxUsers enabledModules enabledSettings")
     .lean();
   if (!company)
     return NextResponse.json({ error: "Company not found" }, { status: 404 });
@@ -59,14 +66,14 @@ export async function POST(req: NextRequest) {
     isOwner: { $ne: true },
   });
 
-  if (count >= Number(company.maxUsers || 1)) {
+  if (count >= Number((company as any).maxUsers || 1)) {
     return NextResponse.json({ error: "User limit reached" }, { status: 403 });
   }
 
   const e = String(email).toLowerCase().trim();
   const p = String(password);
 
-  // ✅ NEW: Cross-company same password restriction for same email
+  // ✅ Cross-company same password restriction for same email
   const blocked = await blockSamePasswordAcrossCompanies({
     email: e,
     companyId: String(session.companyId),
@@ -90,8 +97,18 @@ export async function POST(req: NextRequest) {
 
   const finalModules = intersectAllowed(
     Array.isArray(allowedModules) ? allowedModules : [],
-    (company.enabledModules || []) as string[],
+    ((company as any).enabledModules || []) as string[],
   );
+
+  // ✅ NEW: settings trim by company subscription
+  const enabledSettings = (((company as any).enabledSettings || []) as string[]) || [];
+  let finalSettings = intersectAllowedSettings(
+    Array.isArray(allowedSettings) ? allowedSettings : [],
+    enabledSettings,
+  );
+
+  // optional gate: if SETTINGS module not allowed, settings empty
+  if (!finalModules.includes("SETTINGS")) finalSettings = [];
 
   const passwordHash = await bcrypt.hash(p, 10);
 
@@ -104,6 +121,7 @@ export async function POST(req: NextRequest) {
       phone: String(phone || "").trim(),
       role: finalRole,
       allowedModules: finalModules,
+      allowedSettings: finalSettings, // ✅ NEW
       isActive: true,
       isOwner: false,
       lockedBySuper: false,
@@ -114,7 +132,6 @@ export async function POST(req: NextRequest) {
       .lean();
     return NextResponse.json({ user: safe }, { status: 201 });
   } catch (err: any) {
-    // ✅ if same email inside same company due to unique index
     if (err?.code === 11000) {
       return NextResponse.json(
         { error: "EMAIL_ALREADY_EXISTS_IN_COMPANY" },

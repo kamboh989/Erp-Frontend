@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ForbiddenCard from "@/app/components/forbidden-card";
 
 const shell = "max-w-6xl mx-auto p-6";
 const panel =
@@ -18,19 +19,27 @@ export default function CrmSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [allowedSettings, setAllowedSettings] = useState<string[]>([]);
 
   const [users, setUsers] = useState<User[]>([]);
 
   const [defaultLeadStatus, setDefaultLeadStatus] = useState("NEW");
   const [metaDefaultOwnerId, setMetaDefaultOwnerId] = useState<string>("");
-  const [metaAssignmentMode, setMetaAssignmentMode] = useState<"DEFAULT_OWNER" | "UNASSIGNED">("DEFAULT_OWNER");
+  const [metaAssignmentMode, setMetaAssignmentMode] = useState<
+    "DEFAULT_OWNER" | "UNASSIGNED"
+  >("DEFAULT_OWNER");
   const [autoMove, setAutoMove] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const me = await fetch("/api/auth/me", { cache: "no-store", credentials: "include" }).then(r => r.json());
+      const me = await fetch("/api/auth/me", {
+        cache: "no-store",
+        credentials: "include",
+      }).then((r) => r.json());
       const s = me?.session;
+
       setIsAdmin(Boolean(s?.isOwner) || s?.role === "ADMIN");
+      setAllowedSettings((s?.allowedSettings || []) as string[]);
 
       const [sRes, uRes] = await Promise.all([
         fetch("/api/settings/crm", { cache: "no-store", credentials: "include" }),
@@ -77,6 +86,16 @@ export default function CrmSettingsPage() {
   }
 
   if (loading) return <div className={shell}>Loading...</div>;
+
+  // ✅ settings permission guard
+  if (!allowedSettings.includes("SETTINGS_CRM")) {
+    return (
+      <ForbiddenCard
+        title="Forbidden"
+        message="CRM settings are not assigned to your role."
+      />
+    );
+  }
 
   return (
     <div className={shell}>

@@ -8,6 +8,10 @@ const CompanySchema = new Schema(
     phone: { type: String, trim: true },
 
     enabledModules: { type: [String], default: [] },
+
+     // ✅ NEW: company subscription settings
+    enabledSettings: { type: [String], default: [] },
+    
     maxUsers: { type: Number, default: 1 },
 
     isActive: { type: Boolean, default: true },
