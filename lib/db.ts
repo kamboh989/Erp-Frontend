@@ -9,6 +9,8 @@ declare global {
 
 export async function connectDB() {
   const MONGODB_URI = process.env.MONGODB_URI;
+  console.log("MONGODB_URI?", process.env.MONGODB_URI?.slice(0, 40));
+
 
   if (!MONGODB_URI) {
     throw new Error("MONGODB_URI is missing (runtime)");

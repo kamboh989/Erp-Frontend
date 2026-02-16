@@ -340,33 +340,35 @@ export default function SuperAdminCompaniesPage() {
             </button>
           </div>
 
-          <div className="grid md:grid-cols-[1fr_1.6fr] gap-6">
-            <div className="grid gap-3">
-              <label className="text-sm text-white/70">Company Name</label>
-              <input className={input} value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+          <div className="grid md:grid-cols-[0.7fr_1.6fr] gap-6">
+           
+            <div className="flex flex-col gap-6">
+  <label className="text-sm text-white/70">Company Name</label>
+  <input className={input} value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
 
-              <label className="text-sm text-white/70">Owner Email</label>
-              <input className={input} value={email} onChange={(e) => setEmail(e.target.value)} />
+  <label className="text-sm text-white/70">Owner Email</label>
+  <input className={input} value={email} onChange={(e) => setEmail(e.target.value)} />
 
-              <label className="text-sm text-white/70">Owner Password</label>
-              <input className={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+  <label className="text-sm text-white/70">Owner Password</label>
+  <input className={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
-              <label className="text-sm text-white/70">Phone</label>
-              <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
+  <label className="text-sm text-white/70">Phone</label>
+  <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
 
-              <div className="grid gap-2">
-                <label className="text-sm text-white/70">Max Users</label>
-                <input className={input} type="number" min={1} value={maxUsers} onChange={(e) => setMaxUsers(Number(e.target.value))} />
-                <div className="text-xs text-white/50">
-                  ✅ Owner count nahi hoga. MaxUsers = extra users limit.
-                </div>
-              </div>
-            </div>
+  <label className="text-sm text-white/70">Max Users</label>
+  <input
+    className={input}
+    type="number"
+    min={1}
+    value={maxUsers}
+    onChange={(e) => setMaxUsers(Number(e.target.value))}
+  />
+</div>
 
             <div className="space-y-4">
               <div>
                 <div className="text-sm font-semibold mb-2">Enabled Modules (Company Subscription)</div>
-                <div className="max-h-[260px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">
+                <div className=" rounded-2xl border border-white/10 bg-black/20 p-3">
                   <ModulePicker value={enabledModules} onChange={setEnabledModules} />
                 </div>
               </div>

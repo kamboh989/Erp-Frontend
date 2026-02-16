@@ -16,7 +16,7 @@ type CompanyUser = {
   isOwner?: boolean;
   isActive?: boolean;
   allowedModules?: AppModule[];
-  allowedSettings?: AppSetting[]; // ✅ NEW
+  allowedSettings?: AppSetting[]; 
   createdAt?: string;
 };
 
@@ -133,7 +133,7 @@ export default function AdminUsersPage() {
         phone: phone.trim(),
         role,
         allowedModules,
-        allowedSettings, // ✅ NEW
+        allowedSettings, 
       }),
     });
 
@@ -266,35 +266,36 @@ export default function AdminUsersPage() {
             </button>
           </div>
 
-          <div className="grid md:grid-cols-[1fr_1.6fr] gap-6">
-            <div className="grid gap-3">
-              <label className="text-sm text-white/70">Name</label>
-              <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
+          <div className="grid md:grid-cols-[0.7fr_1.6fr] gap-6">
+           <div className="grid gap-2">
+  <div className="flex flex-col gap-5">
+    <label className="text-sm text-white/70">Name</label>
+    <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
 
-              <label className="text-sm text-white/70">Email</label>
-              <input className={input} value={email} onChange={(e) => setEmail(e.target.value)} />
+    <label className="text-sm text-white/70">Email</label>
+    <input className={input} value={email} onChange={(e) => setEmail(e.target.value)} />
 
-              <label className="text-sm text-white/70">Password</label>
-              <input className={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+    <label className="text-sm text-white/70">Password</label>
+    <input className={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
-              <label className="text-sm text-white/70">Phone (optional)</label>
-              <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
+    <label className="text-sm text-white/70">Phone (optional)</label>
+    <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
 
-              <label className="text-sm text-white/70">Role</label>
-              <select className={input} value={role} onChange={(e) => setRole(e.target.value as any)}>
-                <option value="STAFF">Staff</option>
-                <option value="ADMIN">Admin</option>
-              </select>
+    <label className="text-sm text-white/70">Role</label>
+    <select className={input} value={role} onChange={(e) => setRole(e.target.value as any)}>
+      <option value="STAFF">Staff</option>
+      <option value="ADMIN">Admin</option>
+    </select>
 
-              <span className="text-xs text-white/60">
-                Note: If this email is already used in another company, you must set a different password.
-              </span>
-            </div>
-
+    <span className="text-xs text-white/60">
+      If Admin role is selected, the user will get the same access as Owner — except Owner profile and Owner-only modules.
+    </span>
+  </div>
+</div>
             <div className="space-y-4">
               <div>
                 <div className="text-sm font-semibold mb-2">Allowed Modules</div>
-                <div className="max-h-[260px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-3">
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4 space-y-3">
                   <ModulePicker value={allowedModules} onChange={setAllowedModules} />
                 </div>
               </div>
@@ -304,9 +305,7 @@ export default function AdminUsersPage() {
                 <div className="max-h-[520px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-4">
                   <SettingPicker value={allowedSettings} onChange={setAllowedSettings} />
                 </div>
-                <div className="text-xs text-white/50 mt-2">
-                  Settings auto-trim honge company enabledSettings ke andar.
-                </div>
+               
               </div>
             </div>
           </div>
@@ -499,9 +498,7 @@ export default function AdminUsersPage() {
                         onChange={(s) => setEditUser({ ...editUser, allowedSettings: s })}
                       />
                     </div>
-                    <div className="text-xs text-white/50 mt-2">
-                      Settings auto-trim honge company enabledSettings ke andar.
-                    </div>
+                   
                   </div>
                 </div>
               </div>
