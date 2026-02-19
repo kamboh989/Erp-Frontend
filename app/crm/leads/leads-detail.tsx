@@ -8,6 +8,10 @@ type Assignee = { _id: string; name?: string; email: string };
 
 type Lead = {
   _id: string;
+
+  // ✅ NEW: 7-digit professional id
+  leadId7?: string; // "0000001"
+
   name: string;
   phone?: string;
   email?: string;
@@ -15,12 +19,12 @@ type Lead = {
   source: "MANUAL" | "META";
   status: "NEW" | "CONTACTED" | "FOLLOW_UP" | "INTERESTED" | "CONVERTED" | "LOST";
 
-  // ✅ NEW: multiple assignees
+  // ✅ multiple assignees
   assignedToIds?: Assignee[];
 
   createdAt: string;
 
-  // ✅ NEW: follow-up fields
+  // ✅ follow-up fields
   nextFollowUpAt?: string | null;
   followUpType?: "CALL" | "MEETING" | "WHATSAPP" | "EMAIL";
   followUpNote?: string;
@@ -98,7 +102,7 @@ export default function LeadsPage() {
   const [email, setEmail] = useState("");
   const [businessName, setBusinessName] = useState("");
 
-  // ✅ NEW: multi-assign in modal (admin only)
+  // ✅ multi-assign in modal (admin only)
   const [assignedToIds, setAssignedToIds] = useState<string[]>([]);
 
   const isAdmin = useMemo(
@@ -250,9 +254,7 @@ export default function LeadsPage() {
     if (!selected) return;
     if (!isOwner) return;
 
-    const ok = confirm(
-      "Delete this lead? (It will be removed from active leads.)"
-    );
+    const ok = confirm("Delete this lead? (It will be removed from active leads.)");
     if (!ok) return;
 
     const r = await fetch(`/api/crm/leads/${selected._id}`, {
@@ -312,25 +314,19 @@ export default function LeadsPage() {
 
         <div className={card}>
           <div className="text-sm text-gray-500">New</div>
-          <div className="text-2xl font-bold text-gray-900">
-            {stats.newLeads}
-          </div>
+          <div className="text-2xl font-bold text-gray-900">{stats.newLeads}</div>
           <div className="mt-3 h-1 rounded-full bg-gradient-to-r from-black to-blue-700" />
         </div>
 
         <div className={card}>
           <div className="text-sm text-gray-500">In Progress</div>
-          <div className="text-2xl font-bold text-gray-900">
-            {stats.inProgress}
-          </div>
+          <div className="text-2xl font-bold text-gray-900">{stats.inProgress}</div>
           <div className="mt-3 h-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-400" />
         </div>
 
         <div className={card}>
           <div className="text-sm text-gray-500">Converted</div>
-          <div className="text-2xl font-bold text-gray-900">
-            {stats.converted}
-          </div>
+          <div className="text-2xl font-bold text-gray-900">{stats.converted}</div>
           <div className="mt-3 h-1 rounded-full bg-gradient-to-r from-indigo-500 to-black" />
         </div>
       </div>
@@ -341,15 +337,14 @@ export default function LeadsPage() {
         <div className={"lg:col-span-2 " + card}>
           <div className="flex items-center justify-between mb-3">
             <div className="text-lg font-semibold text-gray-900">Leads List</div>
-            <div className="text-xs text-gray-500">
-              Click a row to view details
-            </div>
+            <div className="text-xs text-gray-500">Click a row to view details</div>
           </div>
 
           <div className="overflow-auto">
             <table className="w-full text-sm">
               <thead className="text-gray-500 border-b border-black/10">
                 <tr>
+                  <th className="py-2 text-left">ID</th>
                   <th className="py-2 text-left">Name</th>
                   <th className="py-2 text-left">Source</th>
                   <th className="py-2 text-left">Status</th>
@@ -369,19 +364,24 @@ export default function LeadsPage() {
                           : "hover:bg-black/5"
                       }`}
                     >
-                      <td className="py-3 font-semibold text-gray-900">
-                        {l.name}
+                      <td className="py-3 font-mono text-gray-700">
+                        {l.leadId7 || "—"}
                       </td>
+
+                      <td className="py-3 font-semibold text-gray-900">{l.name}</td>
+
                       <td className="py-3">
                         <span className="text-xs px-2 py-1 rounded-full bg-black/5 border border-black/10">
                           {l.source}
                         </span>
                       </td>
+
                       <td className="py-3">
                         <span className="text-xs px-2 py-1 rounded-full bg-blue-600/10 border border-blue-600/20 text-blue-800">
                           {l.status}
                         </span>
                       </td>
+
                       <td className="py-3 text-gray-700">
                         {assigneeLabel(l.assignedToIds)}
                       </td>
@@ -391,7 +391,7 @@ export default function LeadsPage() {
 
                 {list.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="py-6 text-gray-500">
+                    <td colSpan={5} className="py-6 text-gray-500">
                       No leads yet.
                     </td>
                   </tr>
@@ -405,9 +405,7 @@ export default function LeadsPage() {
         <div className={card}>
           {/* Header + delete (OWNER ONLY) */}
           <div className="flex items-center justify-between mb-3">
-            <div className="text-lg font-semibold text-gray-900">
-              Lead Details
-            </div>
+            <div className="text-lg font-semibold text-gray-900">Lead Details</div>
 
             {isOwner && selected && (
               <button
@@ -425,36 +423,45 @@ export default function LeadsPage() {
           ) : (
             <>
               <div className="space-y-2 text-sm">
+                {/* ✅ Lead ID */}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Name</span>
-                  <span className="font-semibold text-gray-900">
-                    {selected.name}
+                  <span className="text-gray-500">Lead ID</span>
+                  <span className="font-semibold text-gray-900 font-mono">
+                    {selected.leadId7 || "—"}
                   </span>
                 </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Name</span>
+                  <span className="font-semibold text-gray-900">{selected.name}</span>
+                </div>
+
                 <div className="flex justify-between">
                   <span className="text-gray-500">Phone</span>
                   <span className="font-semibold text-gray-900">
                     {selected.phone || "—"}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-gray-500">Email</span>
                   <span className="font-semibold text-gray-900">
                     {selected.email || "—"}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-gray-500">Business</span>
                   <span className="font-semibold text-gray-900">
                     {selected.businessName || "—"}
                   </span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-gray-500">Source</span>
-                  <span className="font-semibold text-gray-900">
-                    {selected.source}
-                  </span>
+                  <span className="font-semibold text-gray-900">{selected.source}</span>
                 </div>
+
                 <div className="flex justify-between">
                   <span className="text-gray-500">Created</span>
                   <span className="font-semibold text-gray-900">
@@ -484,9 +491,7 @@ export default function LeadsPage() {
               {isAdmin && (
                 <>
                   <div className="h-4" />
-                  <div className="text-sm text-gray-600 mb-2">
-                    Assign to (multiple)
-                  </div>
+                  <div className="text-sm text-gray-600 mb-2">Assign to (multiple)</div>
 
                   <div className="max-h-40 overflow-y-auto rounded-xl border border-black/10 bg-black/5 p-3 space-y-2">
                     {users.map((u) => {
@@ -519,9 +524,7 @@ export default function LeadsPage() {
                       );
                     })}
                     {users.length === 0 && (
-                      <div className="text-sm text-gray-500">
-                        No active users
-                      </div>
+                      <div className="text-sm text-gray-500">No active users</div>
                     )}
                   </div>
                 </>
@@ -529,9 +532,7 @@ export default function LeadsPage() {
 
               {/* ✅ Follow-up (Saved in DB) */}
               <div className="h-4" />
-              <div className="text-sm font-semibold text-gray-900 mb-2">
-                Follow-up
-              </div>
+              <div className="text-sm font-semibold text-gray-900 mb-2">Follow-up</div>
 
               <label className="text-sm text-gray-600">Type</label>
               <select
@@ -551,9 +552,7 @@ export default function LeadsPage() {
 
               <div className="h-3" />
 
-              <label className="text-sm text-gray-600">
-                Next Follow-up Time
-              </label>
+              <label className="text-sm text-gray-600">Next Follow-up Time</label>
               <input
                 className={input}
                 type="datetime-local"
@@ -579,8 +578,6 @@ export default function LeadsPage() {
                 onBlur={() => updateLead({ followUp: { followUpNote } })}
                 placeholder="e.g. Meeting Tuesday 3pm"
               />
-
-              
 
               <div className="h-4" />
 
@@ -726,9 +723,7 @@ export default function LeadsPage() {
                       );
                     })}
                     {users.length === 0 && (
-                      <div className="text-sm text-gray-500">
-                        No active users
-                      </div>
+                      <div className="text-sm text-gray-500">No active users</div>
                     )}
                   </div>
                 </div>
@@ -743,8 +738,6 @@ export default function LeadsPage() {
                 Create Lead
               </button>
             </div>
-
-           
           </div>
         </div>
       )}

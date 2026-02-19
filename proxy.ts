@@ -8,7 +8,7 @@ function prompt() {
 
 const MODULE_ROUTE_MAP: Array<{ prefix: string; module: string }> = [
   { prefix: "/crm/leads", module: "CRM_LEADS" },
-  { prefix: "/crm/customers", module: "CRM_CUSTOMERS" },
+  { prefix: "/crm/followups", module: "CRM_FOLLOWUPS" },
   { prefix: "/crm/deals", module: "CRM_DEALS" },
 
   { prefix: "/erp/sales", module: "ERP_SALES" },

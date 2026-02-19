@@ -14,7 +14,11 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     const base: any = { companyId: session.companyId, isDeleted: false };
-    if (!isAdmin(session)) base.assignedToIds = session.userId;
+
+    // ✅ FIX: assignedToIds is ARRAY => use $in
+    if (!isAdmin(session)) {
+      base.assignedToIds = { $in: [session.userId] };
+    }
 
     const [total, newLeads, converted, inProgress] = await Promise.all([
       Lead.countDocuments(base),

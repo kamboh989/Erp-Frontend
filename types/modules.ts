@@ -2,7 +2,7 @@ export const MODULES = {
   DASHBOARD: { label: "Dashboard", group: "Core" },
 
   CRM_LEADS: { label: "Leads", group: "CRM" },
-  CRM_CUSTOMERS: { label: "Customers", group: "CRM" },
+  CRM_FOLLOWUPS: { label: "Follow up", group: "CRM" },
   CRM_DEALS: { label: "Deals", group: "CRM" },
 
   ERP_SALES: { label: "Sales", group: "ERP" },

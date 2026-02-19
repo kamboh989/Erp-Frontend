@@ -1,4 +1,5 @@
 import mongoose, { Schema, InferSchemaType } from "mongoose";
+import Counter from "@/models/Counter";
 
 /* ---------------- ACTIVITY ---------------- */
 const ActivitySchema = new Schema(
@@ -34,6 +35,12 @@ const LeadSchema = new Schema(
       required: true,
       index: true,
     },
+
+    // ✅ 7-digit professional lead id
+    // leadNo = numeric sequence (1..9999999)
+    // leadId7 = padded string ("0000001")
+    leadNo: { type: Number, default: null, index: true },
+    leadId7: { type: String, default: "", index: true },
 
     // identity
     name: { type: String, trim: true, default: "Unknown" },
@@ -79,7 +86,11 @@ const LeadSchema = new Schema(
 
     // system
     createdBy: { type: String, enum: ["SYSTEM", "USER"], required: true },
-    createdByUserId: { type: Schema.Types.ObjectId, ref: "CompanyUser", default: null },
+    createdByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "CompanyUser",
+      default: null,
+    },
 
     activities: { type: [ActivitySchema], default: [] },
     lastActivityAt: { type: Date, default: null },
@@ -87,7 +98,11 @@ const LeadSchema = new Schema(
     // soft delete
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date, default: null },
-    deletedByUserId: { type: Schema.Types.ObjectId, ref: "CompanyUser", default: null },
+    deletedByUserId: {
+      type: Schema.Types.ObjectId,
+      ref: "CompanyUser",
+      default: null,
+    },
   },
   { timestamps: true }
 );
@@ -95,7 +110,34 @@ const LeadSchema = new Schema(
 /* ---------------- SAFE GUARD (IMPORTANT) ---------------- */
 // ✅ MANUAL => meta remove
 // ✅ META => if leadgenId missing/empty => meta remove
-LeadSchema.pre("validate", function () {
+// ✅ also: auto-generate 7-digit lead id (manual + meta both)
+LeadSchema.pre("validate", async function () {
+  // @ts-ignore
+  if (!this.companyId) return;
+
+  // ✅ generate lead id once
+  // @ts-ignore
+  if (!this.leadNo || !this.leadId7) {
+    const c = await Counter.findOneAndUpdate(
+      // @ts-ignore
+      { companyId: this.companyId, key: "LEAD" },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    ).lean();
+
+    const next = Number(c?.seq || 1);
+
+    // strict 7-digit numeric space
+    if (next > 9999999) {
+      throw new Error("LEAD_ID_LIMIT_REACHED");
+    }
+
+    // @ts-ignore
+    this.leadNo = next;
+    // @ts-ignore
+    this.leadId7 = String(next).padStart(7, "0"); // "0000001"
+  }
+
   // @ts-ignore
   if (this.source === "MANUAL") {
     // @ts-ignore
@@ -116,6 +158,10 @@ LeadSchema.index({ companyId: 1, createdAt: -1 });
 LeadSchema.index({ companyId: 1, isDeleted: 1, createdAt: -1 });
 LeadSchema.index({ companyId: 1, phone: 1 });
 LeadSchema.index({ companyId: 1, email: 1 });
+
+// ✅ per-company uniqueness for lead id
+LeadSchema.index({ companyId: 1, leadNo: 1 }, { unique: true });
+LeadSchema.index({ companyId: 1, leadId7: 1 }, { unique: true });
 
 /**
  * ✅ IMPORTANT:

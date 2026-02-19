@@ -22,7 +22,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 type ModuleKey =
   | "DASHBOARD"
-  | "CRM_LEADS" | "CRM_CUSTOMERS" | "CRM_DEALS"
+  | "CRM_LEADS" | "CRM_FOLLOWUPS" | "CRM_DEALS"
   | "ERP_SALES" | "ERP_INVENTORY" | "ERP_PURCHASING" | "ERP_ACCOUNTS"
   | "REPORTS"
   | "SETTINGS";
@@ -44,7 +44,7 @@ const MENU: MenuItem[] = [
     icon: Users,
     children: [
       { label: "Leads", href: "/crm/leads", icon: UserPlus, module: "CRM_LEADS" },
-      { label: "Customers", href: "/crm/customers", icon: UserCheck, module: "CRM_CUSTOMERS" },
+      { label: "Follow up", href: "/crm/followups", icon: UserCheck, module: "CRM_FOLLOWUPS" },
       { label: "Deals", href: "/crm/deals", icon: Handshake, module: "CRM_DEALS" },
     ],
   },
