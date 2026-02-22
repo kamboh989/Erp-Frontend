@@ -62,6 +62,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ✅ NEW: block duplicates (same phone OR same email) within company
+    const or: any[] = [];
+    if (phone) or.push({ phone });
+    if (email) or.push({ email });
+
+    if (or.length) {
+      const exists = await Lead.findOne({
+        companyId: session.companyId,
+        isDeleted: false,
+        $or: or,
+      })
+        .select("_id leadId7 name phone email")
+        .lean();
+
+      if (exists) {
+        return NextResponse.json(
+          {
+            error: "DUPLICATE_LEAD",
+            message: "This lead already exists (same phone or email).",
+            existing: exists,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     let assignedToIds: any[] = [];
 
     // ✅ Admin can assign multiple users (but must be valid and active)
@@ -106,10 +132,13 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error("POST /api/crm/leads error:", err);
 
-    // ✅ Helpful duplicate response
+    // ✅ NEW: helpful duplicate response (from unique indexes)
     if (err?.code === 11000) {
       return NextResponse.json(
-        { error: "DUPLICATE_KEY", message: err.message },
+        {
+          error: "DUPLICATE_LEAD",
+          message: "This lead already exists (same phone or email).",
+        },
         { status: 409 }
       );
     }

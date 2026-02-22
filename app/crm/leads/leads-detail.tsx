@@ -39,9 +39,12 @@ const card =
   "rounded-2xl border border-black/10 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-[2px] hover:shadow-lg";
 const glow =
   "bg-gradient-to-r from-blue-700 to-indigo-500 text-white shadow-md hover:shadow-lg hover:-translate-y-[1px] transition";
-const btn = "rounded-xl px-4 py-2 text-sm font-semibold " + glow;
+const btn =
+  "rounded-xl px-4 py-2 text-sm font-semibold " +
+  glow +
+  " disabled:opacity-60 disabled:cursor-not-allowed";
 const btnGhost =
-  "rounded-xl px-4 py-2 text-sm font-semibold border border-black/10 bg-white hover:bg-black/5 transition";
+  "rounded-xl px-4 py-2 text-sm font-semibold border border-black/10 bg-white hover:bg-black/5 transition disabled:opacity-60 disabled:cursor-not-allowed";
 const input =
   "w-full rounded-xl border border-black/10 px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200";
 
@@ -85,6 +88,10 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
 
   const [addOpen, setAddOpen] = useState(false);
+
+  // ✅ NEW: create lead guard + inline notification
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   // note input
   const [noteText, setNoteText] = useState("");
@@ -180,6 +187,11 @@ export default function LeadsPage() {
     setEmail("");
     setBusinessName("");
     setAssignedToIds([]);
+
+    // ✅ reset create states
+    setCreateError("");
+    setCreating(false);
+
     setAddOpen(true);
     document.body.style.overflow = "hidden";
   }
@@ -204,30 +216,46 @@ export default function LeadsPage() {
   }
 
   async function createLead() {
-    const r = await fetch("/api/crm/leads", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({
-        name,
-        phone,
-        email,
-        businessName,
-        ...(isAdmin ? { assignedToIds } : {}),
-      }),
-    });
+    if (creating) return; // ✅ block double click
+    setCreating(true);
+    setCreateError("");
 
-    const j = await r.json();
-    if (!r.ok) return alert(j?.error || "Create failed");
+    try {
+      const r = await fetch("/api/crm/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name,
+          phone,
+          email,
+          businessName,
+          ...(isAdmin ? { assignedToIds } : {}),
+        }),
+      });
 
-    const newLead = j.lead as Lead;
+      const j = await r.json();
 
-    // ✅ instant UI update
-    setLeads((p) => [newLead, ...p]);
-    setSelected(newLead);
-    await refreshStatsOnly();
+      if (!r.ok) {
+        const msg =
+          j?.error === "DUPLICATE_LEAD"
+            ? "This lead already exists."
+            : j?.error || "Create failed";
+        setCreateError(msg);
+        return;
+      }
 
-    closeAdd();
+      const newLead = j.lead as Lead;
+
+      // ✅ instant UI update
+      setLeads((p) => [newLead, ...p]);
+      setSelected(newLead);
+      await refreshStatsOnly();
+
+      closeAdd();
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function updateLead(patch: any) {
@@ -649,7 +677,7 @@ export default function LeadsPage() {
           <div className="w-full max-w-2xl rounded-2xl border border-black/10 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <div className="text-lg font-semibold text-gray-900">Add Lead</div>
-              <button className={btnGhost} onClick={closeAdd}>
+              <button className={btnGhost} onClick={closeAdd} disabled={creating}>
                 Close
               </button>
             </div>
@@ -692,6 +720,13 @@ export default function LeadsPage() {
                 />
               </div>
 
+              {/* ✅ Inline notification in modal */}
+              {createError && (
+                <div className="md:col-span-2 rounded-xl border border-red-200 bg-red-50 text-red-700 px-3 py-2 text-sm">
+                  {createError}
+                </div>
+              )}
+
               {/* ✅ Multi-assign in modal (admin only) */}
               {isAdmin && (
                 <div className="md:col-span-2">
@@ -731,11 +766,11 @@ export default function LeadsPage() {
             </div>
 
             <div className="mt-5 flex justify-end gap-2">
-              <button className={btnGhost} onClick={closeAdd}>
+              <button className={btnGhost} onClick={closeAdd} disabled={creating}>
                 Cancel
               </button>
-              <button className={btn} onClick={createLead}>
-                Create Lead
+              <button className={btn} onClick={createLead} disabled={creating}>
+                {creating ? "Creating..." : "Create Lead"}
               </button>
             </div>
           </div>

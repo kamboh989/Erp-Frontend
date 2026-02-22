@@ -1,6 +1,40 @@
 "use client";
 
-import { MODULES, MODULE_GROUPS, type AppModule } from "@/types/modules";
+import { useEffect, useMemo, useRef } from "react";
+import {
+  MODULES,
+  MODULE_GROUPS,
+  ERP_SECTIONS,
+  type AppModule,
+  expandModules,
+  getChildren,
+} from "@/types/modules";
+
+function IndCheckbox({
+  checked,
+  indeterminate,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: () => void;
+}) {
+  const ref = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = Boolean(indeterminate);
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className="h-4 w-4 accent-blue-500"
+    />
+  );
+}
 
 export default function ModulePicker({
   value,
@@ -9,41 +43,105 @@ export default function ModulePicker({
   value: AppModule[];
   onChange: (next: AppModule[]) => void;
 }) {
-  const set = new Set(value);
+  const set = useMemo(() => new Set<AppModule>(value), [value]);
 
-  function toggle(m: AppModule) {
-    const next = new Set(set);
-    next.has(m) ? next.delete(m) : next.add(m);
+  function commit(next: Set<AppModule>) {
     onChange(Array.from(next));
+  }
+
+  function toggleParent(parent: AppModule) {
+    const next = new Set(set);
+    const expanded = expandModules([parent]); // parent + children (recursive)
+
+    const allSelected = expanded.every((x) => next.has(x));
+    if (allSelected) expanded.forEach((x) => next.delete(x));
+    else expanded.forEach((x) => next.add(x));
+
+    commit(next);
+  }
+
+  function toggleLeaf(leaf: AppModule) {
+    const next = new Set(set);
+
+    if (next.has(leaf)) next.delete(leaf);
+    else next.add(leaf);
+
+    // ✅ keep parent in-sync (if all children selected → parent checked)
+    for (const sec of ERP_SECTIONS) {
+      const parent = sec.key;
+      const children = getChildren(parent);
+      if (!children.includes(leaf)) continue;
+
+      const allOn = children.length > 0 && children.every((c) => next.has(c));
+      if (allOn) next.add(parent);
+      else next.delete(parent);
+    }
+
+    commit(next);
   }
 
   function selectAllInGroup(group: string) {
+    const next = new Set(set);
+
+    if (group === "ERP") {
+      ERP_SECTIONS.forEach((sec) => {
+        expandModules([sec.key]).forEach((m) => next.add(m));
+      });
+      commit(next);
+      return;
+    }
+
     const items = (Object.keys(MODULES) as AppModule[]).filter(
       (k) => MODULES[k].group === group
     );
-    const next = new Set(set);
-    items.forEach((i) => next.add(i));
-    onChange(Array.from(next));
+    items.forEach((m) => next.add(m));
+    commit(next);
   }
 
   function clearAllInGroup(group: string) {
+    const next = new Set(set);
+
+    if (group === "ERP") {
+      ERP_SECTIONS.forEach((sec) => {
+        expandModules([sec.key]).forEach((m) => next.delete(m));
+      });
+      commit(next);
+      return;
+    }
+
     const items = (Object.keys(MODULES) as AppModule[]).filter(
       (k) => MODULES[k].group === group
     );
+    items.forEach((m) => next.delete(m));
+    commit(next);
+  }
+
+  function selectAllInSection(parent: AppModule) {
     const next = new Set(set);
-    items.forEach((i) => next.delete(i));
-    onChange(Array.from(next));
+    expandModules([parent]).forEach((m) => next.add(m));
+    commit(next);
+  }
+
+  function clearAllInSection(parent: AppModule) {
+    const next = new Set(set);
+    expandModules([parent]).forEach((m) => next.delete(m));
+    commit(next);
   }
 
   return (
     <div className="grid gap-4">
       {MODULE_GROUPS.map((group) => {
-        const items = (Object.keys(MODULES) as AppModule[]).filter(
+        const isERP = group === "ERP";
+
+        const flatItems = (Object.keys(MODULES) as AppModule[]).filter(
           (k) => MODULES[k].group === group
         );
 
         return (
-          <div key={group} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div
+            key={group}
+            className="rounded-2xl border border-white/10 bg-white/5 p-4"
+          >
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-semibold text-white/85">{group}</div>
               <div className="flex gap-2">
@@ -64,22 +162,102 @@ export default function ModulePicker({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {items.map((k) => (
-                <label
-                  key={k}
-                  className="flex items-center gap-3 rounded-xl px-3 py-2 bg-black/20 hover:bg-black/30 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={set.has(k)}
-                    onChange={() => toggle(k)}
-                    className="h-4 w-4 accent-blue-500"
-                  />
-                  <span className="text-sm text-white/85">{MODULES[k].label}</span>
-                </label>
-              ))}
-            </div>
+            {isERP ? (
+              <div className="grid gap-3">
+                {ERP_SECTIONS.map((sec) => {
+                  const parent = sec.key;
+                  const children = getChildren(parent);
+
+                  const selectedCount = children.filter((c) => set.has(c)).length;
+                  const allChildrenOn = children.length > 0 && selectedCount === children.length;
+                  const someChildrenOn = selectedCount > 0 && selectedCount < children.length;
+
+                  return (
+                    <div
+                      key={sec.key}
+                      className="rounded-2xl border border-white/10 bg-black/20 p-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <IndCheckbox
+                            checked={allChildrenOn || set.has(parent)}
+                            indeterminate={someChildrenOn}
+                            onChange={() => toggleParent(parent)}
+                          />
+                          <div>
+                            <div className="text-sm font-semibold text-white/85">
+                              {sec.title}
+                            </div>
+                            <div className="text-xs text-white/55">
+                              Bundle access (selecting enables all inside)
+                            </div>
+                          </div>
+                        </label>
+
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => selectAllInSection(parent)}
+                            className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/15"
+                          >
+                            Select
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => clearAllInSection(parent)}
+                            className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/15"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid gap-2">
+                        {children.map((c) => (
+                          <label
+                            key={c}
+                            className="flex items-center gap-3 rounded-xl px-3 py-2 bg-black/30 hover:bg-black/40 cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={set.has(c)}
+                              onChange={() => toggleLeaf(c)}
+                              className="h-4 w-4 accent-blue-500"
+                            />
+                            <span className="text-sm text-white/80">
+                              {MODULES[c]?.label ?? c}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {flatItems.map((k) => (
+                  <label
+                    key={k}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2 bg-black/20 hover:bg-black/30 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={set.has(k)}
+                      onChange={() => {
+                        const next = new Set(set);
+                        next.has(k) ? next.delete(k) : next.add(k);
+                        commit(next);
+                      }}
+                      className="h-4 w-4 accent-blue-500"
+                    />
+                    <span className="text-sm text-white/85">
+                      {MODULES[k].label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}

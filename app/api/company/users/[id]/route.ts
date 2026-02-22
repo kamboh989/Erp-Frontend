@@ -30,14 +30,21 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       _id: id,
       companyId: session.companyId,
     });
-    if (!target)
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    if (target.isOwner && !session.isOwner) {
-      return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+    if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    // ✅ Owner can edit anyone (except locked-by-super rules)
+    // ✅ Admin (non-owner) can edit ONLY STAFF and NOT himself
+    if (!session.isOwner) {
+      if (String(target._id) === String(session.userId)) {
+        return NextResponse.json({ error: "FORBIDDEN_SELF_EDIT" }, { status: 403 });
+      }
+      if ((target as any).role === "ADMIN" || (target as any).isOwner) {
+        return NextResponse.json({ error: "FORBIDDEN_ADMIN_TARGET" }, { status: 403 });
+      }
     }
 
-    // ✅ enabledSettings add
+    // company config
     const company = await Company.findById(session.companyId)
       .select("enabledModules enabledSettings")
       .lean();
@@ -45,14 +52,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const enabled = (company?.enabledModules || []) as string[];
     const enabledSettings = ((company as any)?.enabledSettings || []) as string[];
 
-    // --- Detect intended email
+    // --- Intended email
     const nextEmail =
       body.email !== undefined
         ? String(body.email).toLowerCase().trim()
-        : String(target.email);
+        : String((target as any).email);
 
-    // ✅ If email is being changed AND that email exists in other companies,
-    // require password in same request
+    // if email changing and exists elsewhere, require password same request
     if (body.email !== undefined) {
       const existsElsewhere = await CompanyUser.exists({
         email: nextEmail,
@@ -69,35 +75,38 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
 
     // --- Apply basic fields
-    if (body.name !== undefined) target.name = String(body.name).trim();
-    if (body.phone !== undefined) target.phone = String(body.phone).trim();
-    if (body.email !== undefined) target.email = nextEmail;
+    if (body.name !== undefined) (target as any).name = String(body.name).trim();
+    if (body.phone !== undefined) (target as any).phone = String(body.phone).trim();
+    if (body.email !== undefined) (target as any).email = nextEmail;
 
-    // role only admin/owner
+    // ✅ ROLE UPDATE RULE:
+    // - Only Owner can set ADMIN
+    // - Admin (non-owner) cannot change role at all (force STAFF)
     if (body.role !== undefined) {
-      if (!(session.isOwner || session.role === "ADMIN")) {
-        return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+      if (!session.isOwner) {
+        // ignore / enforce staff
+        (target as any).role = "STAFF";
+      } else {
+        (target as any).role = body.role === "ADMIN" ? "ADMIN" : "STAFF";
       }
-      if (!target.isOwner)
-        target.role = body.role === "ADMIN" ? "ADMIN" : "STAFF";
     }
 
+    // modules
     if (body.allowedModules !== undefined) {
       const mods = Array.isArray(body.allowedModules) ? body.allowedModules : [];
-      target.allowedModules = intersectAllowed(mods, enabled);
+      (target as any).allowedModules = intersectAllowed(mods, enabled);
     }
 
-    // ✅ NEW allowedSettings (trim)
+    // settings
     if (body.allowedSettings !== undefined) {
       const s = Array.isArray(body.allowedSettings) ? body.allowedSettings : [];
       let finalSettings = intersectAllowedSettings(s, enabledSettings);
 
-      // optional gate: if SETTINGS module not allowed -> empty
-      if (!(target.allowedModules || []).includes("SETTINGS")) finalSettings = [];
+      if (!((target as any).allowedModules || []).includes("SETTINGS")) finalSettings = [];
       (target as any).allowedSettings = finalSettings;
     }
 
-    // ✅ password reset with restriction
+    // password reset
     let changedPassword = false;
     if (body.password !== undefined) {
       const nextPass = String(body.password || "").trim();
@@ -112,7 +121,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         email: nextEmail,
         companyId: String(session.companyId),
         plainPassword: nextPass,
-        excludeUserId: String(target._id),
+        excludeUserId: String((target as any)._id),
       });
 
       if (blocked) {
@@ -122,10 +131,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         );
       }
 
-      target.passwordHash = await bcrypt.hash(nextPass, 10);
+      (target as any).passwordHash = await bcrypt.hash(nextPass, 10);
       changedPassword = true;
     }
 
+    // active toggle
     if (body.isActive !== undefined) {
       const nextActive = Boolean(body.isActive);
 
@@ -136,22 +146,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
         );
       }
 
-      target.isActive = nextActive;
+      (target as any).isActive = nextActive;
     }
 
-    try {
-      await target.save();
-    } catch (err: any) {
-      if (err?.code === 11000) {
-        return NextResponse.json(
-          { error: "EMAIL_ALREADY_EXISTS_IN_COMPANY" },
-          { status: 409 },
-        );
-      }
-      return NextResponse.json({ error: "SERVER_ERROR" }, { status: 500 });
-    }
+    await target.save();
 
-    const safe = await CompanyUser.findById(target._id)
+    const safe = await CompanyUser.findById((target as any)._id)
       .select("-passwordHash")
       .lean();
 
@@ -179,7 +179,12 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "OWNER_CANNOT_BE_DELETED" }, { status: 400 });
     }
 
-    // ✅ strict confirm = TARGET user's own email/password
+    // ✅ Admin (non-owner) can delete only STAFF (not admin)
+    if (!session.isOwner && (target as any).role === "ADMIN") {
+      return NextResponse.json({ error: "FORBIDDEN_ADMIN_TARGET" }, { status: 403 });
+    }
+
+    // strict confirm
     const body = await req.json().catch(() => ({} as any));
     const confirmEmail = String(body?.email || "").toLowerCase().trim();
     const confirmPassword = String(body?.password || "");

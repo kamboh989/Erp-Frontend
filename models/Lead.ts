@@ -37,8 +37,6 @@ const LeadSchema = new Schema(
     },
 
     // ✅ 7-digit professional lead id
-    // leadNo = numeric sequence (1..9999999)
-    // leadId7 = padded string ("0000001")
     leadNo: { type: Number, default: null, index: true },
     leadId7: { type: String, default: "", index: true },
 
@@ -108,9 +106,6 @@ const LeadSchema = new Schema(
 );
 
 /* ---------------- SAFE GUARD (IMPORTANT) ---------------- */
-// ✅ MANUAL => meta remove
-// ✅ META => if leadgenId missing/empty => meta remove
-// ✅ also: auto-generate 7-digit lead id (manual + meta both)
 LeadSchema.pre("validate", async function () {
   // @ts-ignore
   if (!this.companyId) return;
@@ -156,8 +151,6 @@ LeadSchema.pre("validate", async function () {
 /* ---------------- INDEXES ---------------- */
 LeadSchema.index({ companyId: 1, createdAt: -1 });
 LeadSchema.index({ companyId: 1, isDeleted: 1, createdAt: -1 });
-LeadSchema.index({ companyId: 1, phone: 1 });
-LeadSchema.index({ companyId: 1, email: 1 });
 
 // ✅ per-company uniqueness for lead id
 LeadSchema.index({ companyId: 1, leadNo: 1 }, { unique: true });
@@ -175,6 +168,31 @@ LeadSchema.index(
     unique: true,
     partialFilterExpression: {
       "meta.leadgenId": { $exists: true, $type: "string" },
+    },
+  }
+);
+
+/**
+ * ✅ NEW: Prevent duplicates by phone/email (ignore empty strings)
+ * - same companyId + same phone => blocked
+ * - same companyId + same email => blocked
+ */
+LeadSchema.index(
+  { companyId: 1, phone: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      phone: { $type: "string", $ne: "" },
+    },
+  }
+);
+
+LeadSchema.index(
+  { companyId: 1, email: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      email: { $type: "string", $ne: "" },
     },
   }
 );

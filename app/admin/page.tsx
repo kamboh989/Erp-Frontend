@@ -16,7 +16,7 @@ type CompanyUser = {
   isOwner?: boolean;
   isActive?: boolean;
   allowedModules?: AppModule[];
-  allowedSettings?: AppSetting[]; 
+  allowedSettings?: AppSetting[];
   createdAt?: string;
 };
 
@@ -52,6 +52,9 @@ export default function AdminUsersPage() {
   const router = useRouter();
 
   const [session, setSession] = useState<any>(null);
+  const isOwner = Boolean(session?.isOwner);
+  const isAdmin = Boolean(session?.isOwner) || session?.role === "ADMIN";
+
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -63,7 +66,6 @@ export default function AdminUsersPage() {
   const [role, setRole] = useState<"ADMIN" | "STAFF">("STAFF");
   const [allowedModules, setAllowedModules] = useState<AppModule[]>(["DASHBOARD"]);
 
-  // ✅ NEW create allowed settings
   const [allowedSettings, setAllowedSettings] = useState<AppSetting[]>([
     "SETTINGS_CRM",
     "SETTINGS_META",
@@ -91,11 +93,13 @@ export default function AdminUsersPage() {
       credentials: "include",
     });
     const j = await r.json();
+
     if (!r.ok) {
       alert(mapApiError(j?.error) || "Failed to load users");
       setLoading(false);
       return;
     }
+
     setUsers(j?.users || []);
     setLoading(false);
   }
@@ -107,20 +111,31 @@ export default function AdminUsersPage() {
         router.replace("/auth/login");
         return;
       }
+
       const admin = Boolean(s.isOwner) || s.role === "ADMIN";
       if (!admin) {
         alert("Forbidden: Admin only");
         router.replace("/dashboard");
         return;
       }
+
       await loadUsers();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ✅ Admin (non-owner) must never create ADMIN from UI
+  useEffect(() => {
+    if (session && !isOwner) {
+      setRole("STAFF");
+    }
+  }, [session, isOwner]);
+
   async function createUser() {
     if (!name.trim() || !email.trim() || !password.trim())
       return alert("name/email/password required");
+
+    const payloadRole = isOwner ? role : "STAFF"; // ✅ enforce
 
     const r = await fetch("/api/company/users", {
       method: "POST",
@@ -131,9 +146,9 @@ export default function AdminUsersPage() {
         email: email.trim(),
         password,
         phone: phone.trim(),
-        role,
+        role: payloadRole,
         allowedModules,
-        allowedSettings, 
+        allowedSettings,
       }),
     });
 
@@ -151,6 +166,12 @@ export default function AdminUsersPage() {
   }
 
   function openEdit(u: CompanyUser) {
+    // ✅ extra UI guard: admin (non-owner) cannot edit non-staff
+    if (!isOwner && u.role !== "STAFF") {
+      alert("Forbidden: Admin can only edit Staff users.");
+      return;
+    }
+
     setEditUser({
       ...u,
       allowedModules: (u.allowedModules || []) as AppModule[],
@@ -171,6 +192,9 @@ export default function AdminUsersPage() {
   async function saveEdit() {
     if (!editUser) return;
 
+    // ✅ Non-owner admin cannot change role (force keep staff)
+    const safeRole = isOwner ? editUser.role : "STAFF";
+
     const r = await fetch(`/api/company/users/${editUser._id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -179,9 +203,9 @@ export default function AdminUsersPage() {
         name: editUser.name,
         email: editUser.email,
         phone: editUser.phone,
-        role: editUser.role,
+        role: safeRole,
         allowedModules: editUser.allowedModules,
-        allowedSettings: editUser.allowedSettings, // ✅ NEW
+        allowedSettings: editUser.allowedSettings,
         ...(editPassword.trim() ? { password: editPassword.trim() } : {}),
       }),
     });
@@ -194,6 +218,12 @@ export default function AdminUsersPage() {
   }
 
   async function toggleActive(u: CompanyUser) {
+    // ✅ UI guard: non-owner admin cannot toggle non-staff
+    if (!isOwner && u.role !== "STAFF") {
+      alert("Forbidden: Admin can only manage Staff users.");
+      return;
+    }
+
     const r = await fetch(`/api/company/users/${u._id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -203,10 +233,17 @@ export default function AdminUsersPage() {
 
     const j = await r.json();
     if (!r.ok) return alert(mapApiError(j?.error));
+
     setUsers((p) => p.map((x) => (x._id === u._id ? j.user : x)));
   }
 
   async function strictDelete(u: CompanyUser) {
+    // ✅ UI guard
+    if (!isOwner && u.role !== "STAFF") {
+      alert("Forbidden: Admin can only delete Staff users.");
+      return;
+    }
+
     if (u.isOwner) return alert("Owner cannot be deleted");
 
     const confirmEmail = prompt("Confirm USER EMAIL (exact) to delete permanently:");
@@ -231,11 +268,28 @@ export default function AdminUsersPage() {
     setUsers((p) => p.filter((x) => x._id !== u._id));
   }
 
+  // ✅ Frontend filter (extra safety):
+  // - Owner sees all (except owner already excluded by backend)
+  // - Admin sees only STAFF
+  // - Admin should not see self (backend also hides, but extra safety)
+  const visibleUsers = useMemo(() => {
+    const meId = String(session?.userId || "");
+    let list = [...users];
+
+    if (!isOwner) {
+      list = list.filter((u) => (u.role || "STAFF") === "STAFF");
+      list = list.filter((u) => String(u._id) !== meId);
+    }
+
+    return list;
+  }, [users, isOwner, session?.userId]);
+
   const sorted = useMemo(() => {
-    return [...users].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [users]);
+    return [...visibleUsers].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [visibleUsers]);
 
   if (!session) return null;
+  if (!isAdmin) return null;
 
   return (
     <div className="min-h-screen bg-[#0B0F19] text-white p-6">
@@ -267,31 +321,43 @@ export default function AdminUsersPage() {
           </div>
 
           <div className="grid md:grid-cols-[0.7fr_1.6fr] gap-6">
-           <div className="grid gap-2">
-  <div className="flex flex-col gap-5">
-    <label className="text-sm text-white/70">Name</label>
-    <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
+            <div className="grid gap-2">
+              <div className="flex flex-col gap-5">
+                <label className="text-sm text-white/70">Name</label>
+                <input className={input} value={name} onChange={(e) => setName(e.target.value)} />
 
-    <label className="text-sm text-white/70">Email</label>
-    <input className={input} value={email} onChange={(e) => setEmail(e.target.value)} />
+                <label className="text-sm text-white/70">Email</label>
+                <input className={input} value={email} onChange={(e) => setEmail(e.target.value)} />
 
-    <label className="text-sm text-white/70">Password</label>
-    <input className={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <label className="text-sm text-white/70">Password</label>
+                <input className={input} type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
 
-    <label className="text-sm text-white/70">Phone (optional)</label>
-    <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <label className="text-sm text-white/70">Phone (optional)</label>
+                <input className={input} value={phone} onChange={(e) => setPhone(e.target.value)} />
 
-    <label className="text-sm text-white/70">Role</label>
-    <select className={input} value={role} onChange={(e) => setRole(e.target.value as any)}>
-      <option value="STAFF">Staff</option>
-      <option value="ADMIN">Admin</option>
-    </select>
+                <label className="text-sm text-white/70">Role</label>
+                <select
+                  className={input}
+                  value={isOwner ? role : "STAFF"}
+                  onChange={(e) => setRole(e.target.value as any)}
+                  disabled={!isOwner} // ✅ only owner can choose admin
+                >
+                  <option value="STAFF">Staff</option>
+                  {isOwner && <option value="ADMIN">Admin</option>}
+                </select>
 
-    <span className="text-xs text-white/60">
-      If Admin role is selected, the user will get the same access as Owner — except Owner profile and Owner-only modules.
-    </span>
-  </div>
-</div>
+                {!isOwner ? (
+                  <span className="text-xs text-white/60">
+                    Admin user can only create STAFF. Only Owner can create ADMIN.
+                  </span>
+                ) : (
+                  <span className="text-xs text-white/60">
+                    Owner can create STAFF and ADMIN.
+                  </span>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-4">
               <div>
                 <div className="text-sm font-semibold mb-2">Allowed Modules</div>
@@ -305,7 +371,6 @@ export default function AdminUsersPage() {
                 <div className="max-h-[520px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-4">
                   <SettingPicker value={allowedSettings} onChange={setAllowedSettings} />
                 </div>
-               
               </div>
             </div>
           </div>
@@ -392,11 +457,19 @@ export default function AdminUsersPage() {
                             Edit
                           </button>
 
-                          <button className={btnGhost} onClick={() => toggleActive(u)} disabled={u.isOwner}>
+                          <button
+                            className={btnGhost}
+                            onClick={() => toggleActive(u)}
+                            disabled={Boolean(u.isOwner)}
+                          >
                             {u.isActive ? "Deactivate" : "Activate"}
                           </button>
 
-                          <button className={btnDanger} onClick={() => strictDelete(u)} disabled={u.isOwner}>
+                          <button
+                            className={btnDanger}
+                            onClick={() => strictDelete(u)}
+                            disabled={Boolean(u.isOwner)}
+                          >
                             Delete
                           </button>
                         </div>
@@ -456,10 +529,17 @@ export default function AdminUsersPage() {
                     className={input}
                     value={editUser.role || "STAFF"}
                     onChange={(e) => setEditUser({ ...editUser, role: e.target.value as any })}
+                    disabled={!isOwner} // ✅ only owner can change roles
                   >
                     <option value="STAFF">Staff</option>
-                    <option value="ADMIN">Admin</option>
+                    {isOwner && <option value="ADMIN">Admin</option>}
                   </select>
+
+                  {!isOwner && (
+                    <span className="text-xs text-white/60">
+                      Only Owner can change roles.
+                    </span>
+                  )}
 
                   <label className="text-sm text-white/70">New Password (optional)</label>
                   <input
@@ -498,7 +578,6 @@ export default function AdminUsersPage() {
                         onChange={(s) => setEditUser({ ...editUser, allowedSettings: s })}
                       />
                     </div>
-                   
                   </div>
                 </div>
               </div>
