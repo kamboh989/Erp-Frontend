@@ -51,7 +51,7 @@ export default function ModulePicker({
 
   function toggleParent(parent: AppModule) {
     const next = new Set(set);
-    const expanded = expandModules([parent]); // parent + children (recursive)
+    const expanded = expandModules([parent]);
 
     const allSelected = expanded.every((x) => next.has(x));
     if (allSelected) expanded.forEach((x) => next.delete(x));
@@ -66,65 +66,19 @@ export default function ModulePicker({
     if (next.has(leaf)) next.delete(leaf);
     else next.add(leaf);
 
-    // ✅ keep parent in-sync (if all children selected → parent checked)
     for (const sec of ERP_SECTIONS) {
       const parent = sec.key;
       const children = getChildren(parent);
+
       if (!children.includes(leaf)) continue;
 
-      const allOn = children.length > 0 && children.every((c) => next.has(c));
+      const allOn =
+        children.length > 0 && children.every((c) => next.has(c));
+
       if (allOn) next.add(parent);
       else next.delete(parent);
     }
 
-    commit(next);
-  }
-
-  function selectAllInGroup(group: string) {
-    const next = new Set(set);
-
-    if (group === "ERP") {
-      ERP_SECTIONS.forEach((sec) => {
-        expandModules([sec.key]).forEach((m) => next.add(m));
-      });
-      commit(next);
-      return;
-    }
-
-    const items = (Object.keys(MODULES) as AppModule[]).filter(
-      (k) => MODULES[k].group === group
-    );
-    items.forEach((m) => next.add(m));
-    commit(next);
-  }
-
-  function clearAllInGroup(group: string) {
-    const next = new Set(set);
-
-    if (group === "ERP") {
-      ERP_SECTIONS.forEach((sec) => {
-        expandModules([sec.key]).forEach((m) => next.delete(m));
-      });
-      commit(next);
-      return;
-    }
-
-    const items = (Object.keys(MODULES) as AppModule[]).filter(
-      (k) => MODULES[k].group === group
-    );
-    items.forEach((m) => next.delete(m));
-    commit(next);
-  }
-
-  function selectAllInSection(parent: AppModule) {
-    const next = new Set(set);
-    expandModules([parent]).forEach((m) => next.add(m));
-    commit(next);
-  }
-
-  function clearAllInSection(parent: AppModule) {
-    const next = new Set(set);
-    expandModules([parent]).forEach((m) => next.delete(m));
     commit(next);
   }
 
@@ -142,24 +96,8 @@ export default function ModulePicker({
             key={group}
             className="rounded-2xl border border-white/10 bg-white/5 p-4"
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold text-white/85">{group}</div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => selectAllInGroup(group)}
-                  className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/15"
-                >
-                  Select all
-                </button>
-                <button
-                  type="button"
-                  onClick={() => clearAllInGroup(group)}
-                  className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/15"
-                >
-                  Clear
-                </button>
-              </div>
+            <div className="text-sm font-semibold text-white/85 mb-3">
+              {group}
             </div>
 
             {isERP ? (
@@ -168,48 +106,32 @@ export default function ModulePicker({
                   const parent = sec.key;
                   const children = getChildren(parent);
 
-                  const selectedCount = children.filter((c) => set.has(c)).length;
-                  const allChildrenOn = children.length > 0 && selectedCount === children.length;
-                  const someChildrenOn = selectedCount > 0 && selectedCount < children.length;
+                  const selectedCount = children.filter((c) =>
+                    set.has(c)
+                  ).length;
+
+                  const allChildrenOn =
+                    children.length > 0 &&
+                    selectedCount === children.length;
+
+                  const someChildrenOn =
+                    selectedCount > 0 &&
+                    selectedCount < children.length;
 
                   return (
                     <div
                       key={sec.key}
                       className="rounded-2xl border border-white/10 bg-black/20 p-3"
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <IndCheckbox
-                            checked={allChildrenOn || set.has(parent)}
-                            indeterminate={someChildrenOn}
-                            onChange={() => toggleParent(parent)}
-                          />
-                          <div>
-                            <div className="text-sm font-semibold text-white/85">
-                              {sec.title}
-                            </div>
-                            <div className="text-xs text-white/55">
-                              Bundle access (selecting enables all inside)
-                            </div>
-                          </div>
-                        </label>
-
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => selectAllInSection(parent)}
-                            className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/15"
-                          >
-                            Select
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => clearAllInSection(parent)}
-                            className="text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/15"
-                          >
-                            Clear
-                          </button>
-                        </div>
+                      <div className="flex items-center gap-3">
+                        <IndCheckbox
+                          checked={allChildrenOn || set.has(parent)}
+                          indeterminate={someChildrenOn}
+                          onChange={() => toggleParent(parent)}
+                        />
+                        <span className="text-sm font-semibold text-white/85">
+                          {sec.title}
+                        </span>
                       </div>
 
                       <div className="mt-3 grid gap-2">

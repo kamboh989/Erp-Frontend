@@ -9,44 +9,41 @@ export const MODULES = {
   CRM_FOLLOWUPS: { label: "Follow up", group: "CRM" },
   CRM_DEALS: { label: "Deals", group: "CRM" },
 
-  // ERP buckets (old keys keep to not break)
-  ERP_SALES: {
-    label: "Sales",
+  // ======================
+  // ERP (NEW STRUCTURE)
+  // ======================
+
+  ERP_CONTACTS: {
+    label: "Contacts",
     group: "ERP",
-    implies: ["ERP_CUSTOMERS", "ERP_QUOTATIONS", "ERP_INVOICES"],
-  },
-  ERP_INVENTORY: {
-    label: "Inventory",
-    group: "ERP",
-    implies: ["ERP_ITEMS_SERVICES"],
-  },
-  ERP_PURCHASING: {
-    label: "Purchasing",
-    group: "ERP",
-    implies: ["ERP_VENDORS", "ERP_PURCHASE_ORDERS"],
-  },
-  ERP_ACCOUNTS: {
-    label: "Accounts",
-    group: "ERP",
-    implies: ["ERP_EXPENSES", "ERP_PAYMENTS", "ERP_LEDGER"],
+    implies: ["ERP_SUPPLIERS", "ERP_CUSTOMERS"],
   },
 
-  // ERP → Sales
+  ERP_PRODUCTS: {
+    label: "Products",
+    group: "ERP",
+    implies: ["ERP_PRODUCTS_LIST", "ERP_PRODUCTS_ADD", "ERP_UNITS"],
+  },
+
+  ERP_PURCHASE: {
+    label: "Purchase",
+    group: "ERP",
+    implies: ["ERP_PURCHASE_ORDER", "ERP_PURCHASE_LIST", "ERP_PURCHASE_ADD"],
+  },
+
+  // ERP → Contacts
+  ERP_SUPPLIERS: { label: "Suppliers", group: "ERP" },
   ERP_CUSTOMERS: { label: "Customers", group: "ERP" },
-  ERP_QUOTATIONS: { label: "Quotations", group: "ERP" },
-  ERP_INVOICES: { label: "Invoices", group: "ERP" },
 
-  // ERP → Purchasing
-  ERP_VENDORS: { label: "Vendors", group: "ERP" },
-  ERP_PURCHASE_ORDERS: { label: "Purchase Orders", group: "ERP" },
+  // ERP → Products
+  ERP_PRODUCTS_LIST: { label: "List of Products", group: "ERP" },
+  ERP_PRODUCTS_ADD: { label: "Add New Product", group: "ERP" },
+  ERP_UNITS: { label: "Units", group: "ERP" },
 
-  // ERP → Inventory
-  ERP_ITEMS_SERVICES: { label: "Items / Services", group: "ERP" },
-
-  // ERP → Accounts
-  ERP_EXPENSES: { label: "Expenses", group: "ERP" },
-  ERP_PAYMENTS: { label: "Payments", group: "ERP" },
-  ERP_LEDGER: { label: "Ledger", group: "ERP" },
+  // ERP → Purchase
+  ERP_PURCHASE_ORDER: { label: "Purchase Order", group: "ERP" },
+  ERP_PURCHASE_LIST: { label: "List Purchase", group: "ERP" },
+  ERP_PURCHASE_ADD: { label: "Add Purchase", group: "ERP" },
 
   // Common
   REPORTS: { label: "Reports", group: "Common" },
@@ -58,22 +55,24 @@ export type AppModule = keyof typeof MODULES;
 export const MODULE_GROUPS = ["Core", "CRM", "ERP", "Common"] as const;
 export type ModuleGroup = (typeof MODULE_GROUPS)[number];
 
-// ✅ Professional ERP sections (typed keys)
+// ERP Sections (Parent Bundles)
 export const ERP_SECTIONS: ReadonlyArray<{
   key: AppModule;
   title: string;
 }> = [
-  { key: "ERP_SALES", title: "Sales" },
-  { key: "ERP_INVENTORY", title: "Inventory" },
-  { key: "ERP_PURCHASING", title: "Purchasing" },
-  { key: "ERP_ACCOUNTS", title: "Accounts" },
+  { key: "ERP_CONTACTS", title: "Contacts" },
+  { key: "ERP_PRODUCTS", title: "Products" },
+  { key: "ERP_PURCHASE", title: "Purchase" },
 ] as const;
 
-// internal helpers
+// ======================
+// Helpers
+// ======================
+
 type ModuleDef = (typeof MODULES)[AppModule];
 type ImpliesList = readonly AppModule[];
 
-// ✅ expand parent → implied children recursively
+// Expand parent recursively
 export function expandModules(input: AppModule[]) {
   const out = new Set<AppModule>();
 
@@ -90,7 +89,7 @@ export function expandModules(input: AppModule[]) {
   return Array.from(out);
 }
 
-// ✅ access check: direct OR implied by any selected parent
+// Access check
 export function hasAccess(allowed: Set<string>, target: AppModule) {
   if (allowed.has(target)) return true;
 
@@ -106,7 +105,7 @@ export function hasAccess(allowed: Set<string>, target: AppModule) {
   return false;
 }
 
-// ✅ get direct children of a parent (no recursion)
+// Get direct children
 export function getChildren(parent: AppModule): AppModule[] {
   const def = MODULES[parent] as ModuleDef;
   const implied = (def as any).implies as ImpliesList | undefined;

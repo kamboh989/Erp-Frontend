@@ -9,21 +9,18 @@ import {
   UserCheck,
   Handshake,
   Building2,
-  ShoppingCart,
   Boxes,
+  ShoppingCart,
+  Truck,
+  Building,
+  Package,
+  PlusSquare,
+  Scale,
   ClipboardList,
-  Wallet,
+  Receipt,
   BarChart3,
   Settings,
   Shield,
-  Building,
-  FileText,
-  Receipt,
-  Package,
-  Truck,
-  ListChecks,
-  Banknote,
-  BookOpen,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -56,40 +53,35 @@ const MENU: MenuItem[] = [
     label: "ERP",
     icon: Building2,
     children: [
+      // ✅ Contacts
       {
-        label: "Sales",
-        icon: ShoppingCart,
+        label: "Contacts",
+        icon: Users,
         children: [
-          { label: "Customers", href: "/erp/sales/customers", icon: Building, module: "ERP_CUSTOMERS" },
-          { label: "Quotations", href: "/erp/sales/quotations", icon: FileText, module: "ERP_QUOTATIONS" },
-          { label: "Invoices", href: "/erp/sales/invoices", icon: Receipt, module: "ERP_INVOICES" },
+          { label: "Suppliers", href: "/erp/contacts/suppliers", icon: Truck, module: "ERP_SUPPLIERS" },
+          { label: "Customers", href: "/erp/customers", icon: Building, module: "ERP_CUSTOMERS" },
         ],
       },
 
+      // ✅ Products
       {
-        label: "Inventory",
+        label: "Products",
         icon: Boxes,
         children: [
-          { label: "Items / Services", href: "/erp/inventory/items", icon: Package, module: "ERP_ITEMS_SERVICES" },
+          { label: "List of Products", href: "/erp/products", icon: Package, module: "ERP_PRODUCTS_LIST" },
+          { label: "Add New Product", href: "/erp/products/new", icon: PlusSquare, module: "ERP_PRODUCTS_ADD" },
+          { label: "Units", href: "/erp/products/units", icon: Scale, module: "ERP_UNITS" },
         ],
       },
 
+      // ✅ Purchase
       {
-        label: "Purchasing",
-        icon: ClipboardList,
+        label: "Purchase",
+        icon: ShoppingCart,
         children: [
-          { label: "Vendors", href: "/erp/purchasing/vendors", icon: Truck, module: "ERP_VENDORS" },
-          { label: "Purchase Orders", href: "/erp/purchasing/purchase-orders", icon: ListChecks, module: "ERP_PURCHASE_ORDERS" },
-        ],
-      },
-
-      {
-        label: "Accounts",
-        icon: Wallet,
-        children: [
-          { label: "Expenses", href: "/erp/accounts/expenses", icon: Banknote, module: "ERP_EXPENSES" },
-          { label: "Payments", href: "/erp/accounts/payments", icon: Wallet, module: "ERP_PAYMENTS" },
-          { label: "Ledger", href: "/erp/accounts/ledger", icon: BookOpen, module: "ERP_LEDGER" },
+          { label: "Purchase Order", href: "/erp/purchase/orders", icon: ClipboardList, module: "ERP_PURCHASE_ORDER" },
+          { label: "List Purchase", href: "/erp/purchase", icon: Receipt, module: "ERP_PURCHASE_LIST" },
+          { label: "Add Purchase", href: "/erp/purchase/new", icon: PlusSquare, module: "ERP_PURCHASE_ADD" },
         ],
       },
     ],
@@ -98,7 +90,7 @@ const MENU: MenuItem[] = [
   { label: "Reports", href: "/reports", icon: BarChart3, module: "REPORTS" },
   { label: "Settings", href: "/settings", icon: Settings, module: "SETTINGS" },
 
-  // ✅ Admin page (no module key, adminOnly=true)
+  // ✅ Admin page
   { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
 ];
 
@@ -109,10 +101,9 @@ export default function SidebarList() {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     CRM: true,
     ERP: true,
-    Sales: true,
-    Inventory: true,
-    Purchasing: true,
-    Accounts: true,
+    Contacts: true,
+    Products: true,
+    Purchase: true,
   });
 
   const [allowedSet, setAllowedSet] = useState<Set<string>>(new Set());
@@ -124,7 +115,10 @@ export default function SidebarList() {
 
     (async () => {
       try {
-        const r = await fetch("/api/auth/me", { cache: "no-store", credentials: "include" });
+        const r = await fetch("/api/auth/me", {
+          cache: "no-store",
+          credentials: "include",
+        });
         const me = await r.json();
         const session = me?.session;
 
@@ -166,7 +160,7 @@ export default function SidebarList() {
         return { ...item, children: kids };
       }
 
-      // ✅ IMPORTANT FIX: Admin link has no module, still allow it if admin
+      // ✅ Admin link has no module, still allow it
       if (item.adminOnly && item.href) return item;
 
       // ✅ Normal leaf module gating
@@ -177,14 +171,16 @@ export default function SidebarList() {
     return MENU.map(filterItem).filter(Boolean) as MenuItem[];
   }, [allowedSet, loaded, isAdmin]);
 
-  const toggleMenu = (label: string) => setOpenMenus((p) => ({ ...p, [label]: !p[label] }));
+  const toggleMenu = (label: string) =>
+    setOpenMenus((p) => ({ ...p, [label]: !p[label] }));
 
   if (!loaded) return null;
 
   const base3D = "transition-all duration-300 ease-out transform rounded";
   const hover3D =
     "hover:-translate-y-[1px] hover:shadow-lg hover:bg-gradient-to-r hover:from-zinc-100 hover:to-blue-200";
-  const active3D = "bg-gradient-to-r from-zinc-100 to-blue-300 shadow-lg -translate-y-[1px]";
+  const active3D =
+    "bg-gradient-to-r from-zinc-100 to-blue-300 shadow-lg -translate-y-[1px]";
 
   function isAnyChildActive(item: MenuItem): boolean {
     if (!item.children?.length) return Boolean(item.href && pathname === item.href);
@@ -210,7 +206,9 @@ export default function SidebarList() {
                 >
                   <div className="flex items-center gap-2">
                     <Icon size={18} className="text-gray-500" />
-                    <span className="font-semibold text-gray-800">{item.label}</span>
+                    <span className="font-semibold text-gray-800">
+                      {item.label}
+                    </span>
                   </div>
 
                   <ChevronDown
@@ -223,13 +221,17 @@ export default function SidebarList() {
 
                 <ul
                   className={`pl-6 overflow-hidden transition-all duration-300 ease-in-out ${
-                    openMenus[item.label] ? "max-h-[999px] opacity-100" : "max-h-0 opacity-0"
+                    openMenus[item.label]
+                      ? "max-h-[999px] opacity-100"
+                      : "max-h-0 opacity-0"
                   }`}
                 >
                   {item.children.map((child) => {
                     const childHasKids = Boolean(child.children?.length);
                     const ChildIcon = child.icon;
-                    const childParentActive = childHasKids ? isAnyChildActive(child) : false;
+                    const childParentActive = childHasKids
+                      ? isAnyChildActive(child)
+                      : false;
 
                     return (
                       <li key={child.href || child.label} className="mt-2">
@@ -243,7 +245,9 @@ export default function SidebarList() {
                             >
                               <div className="flex items-center gap-2">
                                 <ChildIcon size={16} className="text-gray-500" />
-                                <span className="font-semibold text-gray-800">{child.label}</span>
+                                <span className="font-semibold text-gray-800">
+                                  {child.label}
+                                </span>
                               </div>
 
                               <ChevronDown
@@ -256,11 +260,14 @@ export default function SidebarList() {
 
                             <ul
                               className={`pl-6 overflow-hidden transition-all duration-300 ease-in-out ${
-                                openMenus[child.label] ? "max-h-[999px] opacity-100" : "max-h-0 opacity-0"
+                                openMenus[child.label]
+                                  ? "max-h-[999px] opacity-100"
+                                  : "max-h-0 opacity-0"
                               }`}
                             >
                               {child.children!.map((leaf) => {
-                                const isLeafActive = leaf.href && pathname === leaf.href;
+                                const isLeafActive =
+                                  leaf.href && pathname === leaf.href;
                                 const LeafIcon = leaf.icon;
 
                                 return (
@@ -298,7 +305,9 @@ export default function SidebarList() {
             ) : (
               <Link
                 href={item.href!}
-                className={`flex items-center gap-2 px-3 py-2 ${base3D} ${hover3D} ${isActive ? active3D : ""}`}
+                className={`flex items-center gap-2 px-3 py-2 ${base3D} ${hover3D} ${
+                  isActive ? active3D : ""
+                }`}
               >
                 <Icon size={18} className="text-gray-600" />
                 {item.label}
