@@ -21,13 +21,20 @@ export function NotesModal({
 
   async function save() {
     if (!heading.trim()) return alert("Heading required");
+
     setSaving(true);
     try {
       const res = await fetch(`/api/erp/customers/${contactId}/notes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ heading, descriptionHtml, isPrivate, documents: [] }),
+        body: JSON.stringify({
+          heading,
+          descriptionHtml,
+          isPrivate,
+          documents: [],
+        }),
       });
+
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return alert(data.error || "Failed");
 
@@ -41,32 +48,72 @@ export function NotesModal({
     }
   }
 
+  const inputBase =
+    "w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 shadow-sm " +
+    "placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition";
+
+  const textareaBase =
+    "w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 shadow-sm " +
+    "placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition min-h-[180px]";
+
+  const btnBase =
+    "px-4 py-2.5 rounded-xl text-sm font-medium transition active:scale-[0.99]";
+
   return (
     <Modal open={open} onClose={onClose} title="Add Note" widthClass="max-w-3xl">
-      <div className="space-y-3">
-        <div>
-          <div className="text-xs mb-1">Heading *</div>
-          <input className="w-full border rounded px-2 py-2" value={heading} onChange={(e) => setHeading(e.target.value)} />
+      <div className="space-y-5">
+        {/* Heading */}
+        <div className="space-y-1">
+          <div className="text-xs text-slate-500">Heading *</div>
+          <input
+            className={inputBase}
+            value={heading}
+            onChange={(e) => setHeading(e.target.value)}
+          />
         </div>
 
-        <div>
-          <div className="text-xs mb-1">Description</div>
+        {/* Description */}
+        <div className="space-y-1">
+          <div className="text-xs text-slate-500">Description</div>
           <textarea
-            className="w-full border rounded px-2 py-2 min-h-[180px]"
+            className={textareaBase}
             value={descriptionHtml}
             onChange={(e) => setDescriptionHtml(e.target.value)}
             placeholder="(Later: WYSIWYG editor)"
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={isPrivate} onChange={(e) => setIsPrivate(e.target.checked)} />
+        {/* Private toggle */}
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={isPrivate}
+            onChange={(e) => setIsPrivate(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-200"
+          />
           Is Private?
         </label>
 
-        <div className="flex justify-end gap-2">
-          <button className="px-4 py-2 rounded border" onClick={onClose}>Close</button>
-          <button className="px-4 py-2 rounded bg-blue-600 text-white" disabled={saving} onClick={save}>
+        {/* Footer buttons */}
+        <div className="flex justify-end gap-2 pt-2">
+          <button
+            className={
+              btnBase +
+              " bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50"
+            }
+            onClick={onClose}
+          >
+            Close
+          </button>
+
+          <button
+            className={
+              btnBase +
+              " bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            }
+            disabled={saving}
+            onClick={save}
+          >
             {saving ? "Saving..." : "Save"}
           </button>
         </div>

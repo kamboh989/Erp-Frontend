@@ -45,59 +45,111 @@ export function PayModal({
     }
   }
 
+  const inputBase =
+    "w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 shadow-sm " +
+    "placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition";
+
+  const selectBase =
+    "w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 shadow-sm " +
+    "focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition";
+
+  const textareaBase =
+    "w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 shadow-sm " +
+    "placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition min-h-[100px]";
+
+  const labelBase = "text-xs mb-1 text-slate-500";
+
+  const btnBase = "px-4 py-2.5 rounded-xl text-sm font-medium transition active:scale-[0.99]";
+
   return (
     <Modal open={open} onClose={onClose} title="Add payment" widthClass="max-w-2xl">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="border rounded p-3">
-          <div className="text-xs text-gray-500">Customer name</div>
-          <div className="font-semibold">{contact?.businessName || contact?.name}</div>
+        {/* Customer card */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <div className="text-xs text-slate-500">Customer name</div>
+          <div className="mt-1 text-sm font-semibold text-slate-900">
+            {contact?.businessName || contact?.name}
+          </div>
         </div>
 
-        <div className="border rounded p-3 text-sm">
-          <div><b>Total Sale:</b> Rs {contact?.totals?.totalSaleDue ?? 0}</div>
-          <div><b>Total Paid:</b> Rs 0</div>
-          <div><b>Total Sale Due:</b> Rs {contact?.totals?.totalSaleDue ?? 0}</div>
-          <div><b>Opening Balance:</b> Rs {contact?.totals?.openingBalanceDue ?? 0}</div>
-          <div><b>Opening Balance Due:</b> Rs {contact?.totals?.openingBalanceDue ?? 0}</div>
+        {/* Summary card */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm text-sm text-slate-700 space-y-1">
+          <div className="flex justify-between gap-3">
+            <span className="text-slate-500">Total Sale</span>
+            <span className="font-medium">Rs {contact?.totals?.totalSaleDue ?? 0}</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-slate-500">Total Paid</span>
+            <span className="font-medium">Rs 0</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-slate-500">Total Sale Due</span>
+            <span className="font-medium">Rs {contact?.totals?.totalSaleDue ?? 0}</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-slate-500">Opening Balance</span>
+            <span className="font-medium">Rs {contact?.totals?.openingBalanceDue ?? 0}</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-slate-500">Opening Balance Due</span>
+            <span className="font-medium">Rs {contact?.totals?.openingBalanceDue ?? 0}</span>
+          </div>
         </div>
 
-        <div>
-          <div className="text-xs mb-1">Payment Method *</div>
-          <select className="w-full border rounded px-2 py-2" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+        {/* Fields */}
+        <div className="space-y-1">
+          <div className={labelBase}>Payment Method *</div>
+          <select className={selectBase} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
             <option>Cash</option>
             <option>Bank</option>
             <option>Card</option>
           </select>
         </div>
 
-        <div>
-          <div className="text-xs mb-1">Paid on *</div>
+        <div className="space-y-1">
+          <div className={labelBase}>Paid on *</div>
           <input
             type="datetime-local"
-            className="w-full border rounded px-2 py-2"
+            className={inputBase}
             value={paidOn}
             onChange={(e) => setPaidOn(e.target.value)}
           />
         </div>
 
-        <div>
-          <div className="text-xs mb-1">Amount *</div>
+        <div className="space-y-1">
+          <div className={labelBase}>Amount *</div>
           <input
             type="number"
-            className="w-full border rounded px-2 py-2"
+            className={inputBase}
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
           />
         </div>
 
-        <div className="md:col-span-2">
-          <div className="text-xs mb-1">Payment Note</div>
-          <textarea className="w-full border rounded px-2 py-2 min-h-[100px]" value={note} onChange={(e) => setNote(e.target.value)} />
+        <div className="md:col-span-2 space-y-1">
+          <div className={labelBase}>Payment Note</div>
+          <textarea className={textareaBase} value={note} onChange={(e) => setNote(e.target.value)} />
         </div>
 
-        <div className="md:col-span-2 flex justify-end gap-2">
-          <button className="px-4 py-2 rounded border" onClick={onClose}>Close</button>
-          <button className="px-4 py-2 rounded bg-blue-600 text-white" disabled={saving} onClick={save}>
+        {/* Footer buttons */}
+        <div className="md:col-span-2 flex justify-end gap-2 pt-2">
+          <button
+            className={
+              btnBase + " bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50"
+            }
+            onClick={onClose}
+          >
+            Close
+          </button>
+
+          <button
+            className={
+              btnBase +
+              " bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            }
+            disabled={saving}
+            onClick={save}
+          >
             {saving ? "Saving..." : "Save"}
           </button>
         </div>

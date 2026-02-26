@@ -22,21 +22,24 @@ export function CustomerViewHeader({ current }: { current: any }) {
     load();
   }, []);
 
+  const selectBase =
+    "w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 shadow-sm " +
+    "focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition " +
+    "disabled:opacity-60 disabled:cursor-not-allowed";
+
   return (
-    <div className="flex items-start justify-between gap-3">
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex items-start justify-between gap-4">
       <div>
-        <div className="text-lg font-semibold">
-          View Contact
-        </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-lg font-semibold text-slate-900">View Contact</div>
+        <div className="text-sm text-slate-500 mt-0.5">
           {current?.contactId} — {current?.businessName || current?.name}
         </div>
       </div>
 
-      <div className="min-w-[260px]">
-        <div className="text-xs mb-1 text-gray-500">Quick switch customer</div>
+      <div className="w-full max-w-[320px]">
+        <div className="text-xs mb-1 text-slate-500">Quick switch customer</div>
         <select
-          className="w-full border rounded px-2 py-2"
+          className={selectBase}
           disabled={loading}
           value={current?._id}
           onChange={(e) => router.push(`/erp/customers/${e.target.value}`)}
@@ -47,6 +50,8 @@ export function CustomerViewHeader({ current }: { current: any }) {
             </option>
           ))}
         </select>
+
+        {loading && <div className="text-xs text-slate-400 mt-1">Loading customers…</div>}
       </div>
     </div>
   );
