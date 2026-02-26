@@ -70,7 +70,7 @@ export function AddLoginModal({
         </div>
 
         <div className="md:col-span-2 flex flex-col gap-3 pt-1">
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          {/* <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
               type="checkbox"
               checked={data.isActive}
@@ -78,9 +78,9 @@ export function AddLoginModal({
               className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-200"
             />
             Is active ?
-          </label>
+          </label> */}
 
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          {/* <label className="flex items-center gap-2 text-sm text-slate-700">
             <input
               type="checkbox"
               checked={data.allowLogin}
@@ -90,7 +90,7 @@ export function AddLoginModal({
               className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-200"
             />
             Allow login
-          </label>
+          </label> */}
         </div>
 
         <div className="md:col-span-2 flex justify-end gap-2 pt-2">
