@@ -1,6 +1,6 @@
 import mongoose, { Schema, Types } from "mongoose";
 
-export type ContactType = "CUSTOMER";
+export type ContactType = "SUPPLIER";
 export type PartyType = "INDIVIDUAL" | "BUSINESS";
 export type ContactStatus = "ACTIVE" | "INACTIVE";
 
@@ -13,12 +13,12 @@ const AddressSchema = new Schema(
     country: { type: String, trim: true },
     zip: { type: String, trim: true },
   },
-  { _id: false },
+  { _id: false }
 );
 
-const ContactPersonSchema = new Schema(
+const SupplierPersonSchema = new Schema(
   {
-    prefix: { type: String, trim: true }, // Mr/Mrs/Miss
+    prefix: { type: String, trim: true },
     firstName: { type: String, trim: true, required: true },
     lastName: { type: String, trim: true },
     email: { type: String, trim: true, lowercase: true },
@@ -29,39 +29,40 @@ const ContactPersonSchema = new Schema(
     // allowLogin: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
   },
-  { _id: true, timestamps: true },
+  { _id: true, timestamps: true }
 );
 
 const MoreInfoSchema = new Schema(
   {
     taxNumber: { type: String, trim: true },
     openingBalance: { type: Number, default: 0 }, // Rs
-    creditLimit: { type: Number, default: null }, // null => no limit
-    payTerm: { type: String, trim: true }, // e.g. "30 Days"
+    payTerm: { type: String, trim: true }, // e.g. "30 Days" / "Months"
     billingAddress: { type: AddressSchema, default: {} },
     shippingAddress: { type: AddressSchema, default: {} },
   },
-  { _id: false },
+  { _id: false }
 );
 
-const ContactSchema = new Schema(
+const SupplierSchema = new Schema(
   {
     companyId: { type: Types.ObjectId, required: true, index: true },
 
-    contactId: { type: String, required: true, index: true }, // e.g. C000123
+    contactId: { type: String, required: true, index: true }, // e.g. S000123
 
     contactType: {
       type: String,
-      enum: ["CUSTOMER", "SUPPLIER", "BOTH"],
+      enum: ["SUPPLIER"],
       required: true,
+      default: "SUPPLIER",
+      index: true,
     },
+
     partyType: {
       type: String,
       enum: ["INDIVIDUAL", "BUSINESS"],
       required: true,
     },
 
-    customerGroupId: { type: Types.ObjectId, default: null, index: true },
     businessName: { type: String, trim: true },
     name: { type: String, trim: true },
 
@@ -78,39 +79,38 @@ const ContactSchema = new Schema(
       default: "ACTIVE",
     },
 
+    // ✅ Supplier totals are PURCHASE based
     totals: {
-      totalSaleDue: { type: Number, default: 0 },
-      totalSaleReturnDue: { type: Number, default: 0 },
+      totalPurchaseDue: { type: Number, default: 0 },
+      totalPurchaseReturnDue: { type: Number, default: 0 },
       openingBalanceDue: { type: Number, default: 0 },
       advanceBalance: { type: Number, default: 0 },
+
+      // (optional backward compatibility if old docs exist)
+      totalSaleDue: { type: Number, default: 0 },
+      totalSaleReturnDue: { type: Number, default: 0 },
     },
 
     moreInfo: { type: MoreInfoSchema, default: {} },
-    contactPersons: { type: [ContactPersonSchema], default: [] },
+    contactPersons: { type: [SupplierPersonSchema], default: [] },
 
     createdBy: { type: Types.ObjectId, ref: "CompanyUser", required: true },
     updatedBy: { type: Types.ObjectId, ref: "CompanyUser", default: null },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 // ✅ Unique per company
-ContactSchema.index({ companyId: 1, contactId: 1 }, { unique: true });
+SupplierSchema.index({ companyId: 1, contactId: 1 }, { unique: true });
 
-// ✅ NEW: prevent duplicate MOBILE within same company for CUSTOMER
-ContactSchema.index(
-  { companyId: 1, contactType: 1, mobile: 1 },
-  { unique: true }
-);
+// ✅ prevent duplicate MOBILE within same company for SUPPLIER
+SupplierSchema.index({ companyId: 1, contactType: 1, mobile: 1 }, { unique: true });
 
-// ✅ NEW: prevent duplicate EMAIL within same company for CUSTOMER (email optional)
-ContactSchema.index(
-  { companyId: 1, contactType: 1, email: 1 },
-  { unique: true, sparse: true }
-);
+// ✅ prevent duplicate EMAIL within same company for SUPPLIER (email optional)
+SupplierSchema.index({ companyId: 1, contactType: 1, email: 1 }, { unique: true, sparse: true });
 
-// Search index (basic)
-ContactSchema.index({
+// Search index
+SupplierSchema.index({
   businessName: "text",
   name: "text",
   email: "text",
@@ -118,4 +118,5 @@ ContactSchema.index({
   contactId: "text",
 });
 
-export default mongoose.models.Customer || mongoose.model("Customer", ContactSchema);
+const Supplier = mongoose.models.Supplier || mongoose.model("Supplier", SupplierSchema);
+export default Supplier;

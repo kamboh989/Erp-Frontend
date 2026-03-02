@@ -11,4 +11,4 @@ const CounterSchema = new Schema(
 
 CounterSchema.index({ companyId: 1, key: 1 }, { unique: true });
 
-export default mongoose.models.Counter || mongoose.model("CustomerCounter", CounterSchema);
+export default mongoose.models.CustomerCounter || mongoose.model("CustomerCounter", CounterSchema);

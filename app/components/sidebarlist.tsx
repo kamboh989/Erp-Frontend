@@ -58,7 +58,7 @@ const MENU: MenuItem[] = [
         label: "Contacts",
         icon: Users,
         children: [
-          { label: "Suppliers", href: "/erp/contacts/suppliers", icon: Truck, module: "ERP_SUPPLIERS" },
+          { label: "Suppliers", href: "/erp/suppliers", icon: Truck, module: "ERP_SUPPLIERS" },
           { label: "Customers", href: "/erp/customers", icon: Building, module: "ERP_CUSTOMERS" },
         ],
       },

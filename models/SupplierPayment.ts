@@ -1,6 +1,6 @@
 import mongoose, { Schema, Types } from "mongoose";
 
-const ContactPaymentSchema = new Schema(
+const SupplierPaymentSchema = new Schema(
   {
     companyId: { type: Types.ObjectId, required: true, index: true },
     contactId: { type: Types.ObjectId, required: true, index: true }, // Mongo _id of Contact
@@ -20,7 +20,7 @@ const ContactPaymentSchema = new Schema(
   { timestamps: true },
 );
 
-ContactPaymentSchema.index({ companyId: 1, contactId: 1, paidOn: -1 });
+SupplierPaymentSchema.index({ companyId: 1, contactId: 1, paidOn: -1 });
 
-export default mongoose.models.ContactPayment ||
-  mongoose.model("CustomerPayment", ContactPaymentSchema);
+export default mongoose.models.SupplierPayment ||
+  mongoose.model("CustomerPayment", SupplierPaymentSchema);

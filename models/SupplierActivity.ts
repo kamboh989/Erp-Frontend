@@ -1,6 +1,6 @@
 import mongoose, { Schema, Types } from "mongoose";
 
-const ContactActivitySchema = new Schema(
+const SupplierActivitySchema = new Schema(
   {
     companyId: { type: Types.ObjectId, required: true, index: true },
     contactId: { type: Types.ObjectId, required: true, index: true },
@@ -11,7 +11,7 @@ const ContactActivitySchema = new Schema(
   { timestamps: true },
 );
 
-ContactActivitySchema.index({ companyId: 1, contactId: 1, createdAt: -1 });
+SupplierActivitySchema.index({ companyId: 1, contactId: 1, createdAt: -1 });
 
-export default mongoose.models.ContactActivity ||
-  mongoose.model("CustomertActivity", ContactActivitySchema);
+export default mongoose.models.SupplierActivity ||
+  mongoose.model("SupplierActivity", SupplierActivitySchema);

@@ -1,42 +1,43 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-
-import { CustomerFormModal } from "@/app/components/customers/CustomerFormModal";
-import { ActionDropdown } from "@/app/components/customers/ActionDropdown";
-import { PayModal } from "@/app/components/customers/PayModal";
+import { CustomerFormModal } from "@/app/components/suppliers/CustomerFormModal";
+import { ActionDropdown } from "@/app/components/suppliers/ActionDropdown";
+import { PayModal } from "@/app/components/suppliers/PayModal";
 
 type ContactRow = any;
 
 type ColKey =
   | "contactId"
+  | "businessName"
   | "name"
   | "email"
-  | "mobile"
   | "taxNumber"
-  | "creditLimit"
   | "payTerm"
   | "openingBalance"
   | "advanceBalance"
-  | "saleDue"
-  | "returnDue"
-  | "status"
-  | "createdAt"; // ✅ NEW
+  | "createdAt"
+  | "address"
+  | "mobile"
+  | "purchaseDue"
+  | "purchaseReturnDue"
+  | "status";
 
 const DEFAULT_COLS: Record<ColKey, boolean> = {
   contactId: true,
+  businessName: true,
   name: true,
   email: true,
-  mobile: true,
   taxNumber: true,
-  creditLimit: true,
   payTerm: true,
   openingBalance: true,
   advanceBalance: true,
-  saleDue: true,
-  returnDue: true,
-  status: true,
-  createdAt: true, // ✅ NEW (default visible)
+  createdAt: true,
+  address: true,
+  mobile: true,
+  purchaseDue: true,
+  purchaseReturnDue: true,
+  status: false, // (image me row me status nahi tha - optional)
 };
 
 function money(v: any) {
@@ -52,7 +53,14 @@ function fmtDate(v: any) {
   return d.toLocaleString(); // ✅ system timezone
 }
 
-export default function CustomersPage() {
+
+function buildAddress(r: any) {
+  const a = r?.moreInfo?.billingAddress || {};
+  const parts = [a.line1, a.line2, a.city, a.state, a.country].filter(Boolean);
+  return parts.length ? parts.join(", ") : "-";
+}
+
+export default function SuppliersPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [q, setQ] = useState("");
@@ -61,54 +69,52 @@ export default function CustomersPage() {
 
   const [rows, setRows] = useState<ContactRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [totals, setTotals] = useState<any>({});
+  const [totals, setTotals] = useState<any>({
+    totalPurchaseDue: 0,
+    totalPurchaseReturnDue: 0,
+    openingBalanceDue: 0,
+    advanceBalance: 0,
+  });
 
   const [loading, setLoading] = useState(false);
 
-  // permissions (from API)
   const [canDelete, setCanDelete] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // modals
   const [addOpen, setAddOpen] = useState(false);
   const [editRow, setEditRow] = useState<any>(null);
   const [payRow, setPayRow] = useState<any>(null);
 
-  // column visibility
   const [colsOpen, setColsOpen] = useState(false);
   const [cols, setCols] = useState<Record<ColKey, boolean>>(DEFAULT_COLS);
   const colsMenuRef = useRef<HTMLDivElement | null>(null);
 
-  // ✅ NEW: printed time state (fix hydration)
+  // printed time hydration safe
   const [printedAt, setPrintedAt] = useState("");
 
-  // top filters state
+  // filters (image #1)
   const [f, setF] = useState({
-    sellDue: false,
-    sellReturn: false,
+    purchaseDue: false,
+    purchaseReturn: false,
     advanceBalance: false,
     openingBalance: false,
-    hasNoSellFrom: "",
-    customerGroupId: "",
     assignedTo: "",
     status: "",
   });
 
-  // Assigned-to dropdown users
   const [users, setUsers] = useState<Array<{ _id: string; name: string; role: string }>>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
-  // ✅ backend urls EXACT
   const exportCsvUrl = useMemo(() => {
     const sp = new URLSearchParams();
     if (q.trim()) sp.set("q", q.trim());
-    return `/api/erp/customers/export/csv?${sp.toString()}`;
+    return `/api/erp/suppliers/export/csv?${sp.toString()}`;
   }, [q]);
 
   const exportExcelUrl = useMemo(() => {
     const sp = new URLSearchParams();
     if (q.trim()) sp.set("q", q.trim());
-    return `/api/erp/customers/export/excel?${sp.toString()}`;
+    return `/api/erp/suppliers/export/excel?${sp.toString()}`;
   }, [q]);
 
   function toggleCol(k: ColKey) {
@@ -134,19 +140,15 @@ export default function CustomersPage() {
       sp.set("limit", String(limit));
       if (q.trim()) sp.set("q", q.trim());
 
-      if (f.sellDue) sp.set("sellDue", "1");
-      if (f.sellReturn) sp.set("sellReturn", "1");
+      if (f.purchaseDue) sp.set("purchaseDue", "1");
+      if (f.purchaseReturn) sp.set("purchaseReturn", "1");
       if (f.advanceBalance) sp.set("advanceBalance", "1");
       if (f.openingBalance) sp.set("openingBalance", "1");
-      if (f.hasNoSellFrom) sp.set("hasNoSellFrom", f.hasNoSellFrom);
-      if (f.customerGroupId) sp.set("customerGroupId", f.customerGroupId);
 
-      // ✅ assignedTo filter only if admin
       if (isAdmin && f.assignedTo) sp.set("assignedTo", f.assignedTo);
-
       if (f.status) sp.set("status", f.status);
 
-      const res = await fetch(`/api/erp/customers?${sp.toString()}`, { cache: "no-store" });
+      const res = await fetch(`/api/erp/suppliers?${sp.toString()}`, { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
 
       setRows(Array.isArray(data.rows) ? data.rows : []);
@@ -169,12 +171,10 @@ export default function CustomersPage() {
     loadUsers();
   }, []);
 
-  // ✅ NEW: set printed time only on client (fix hydration)
   useEffect(() => {
     setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
   }, []);
 
-  // search with debounce
   useEffect(() => {
     const t = setTimeout(() => {
       setPage(1);
@@ -182,20 +182,8 @@ export default function CustomersPage() {
     }, 350);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    q,
-    f.sellDue,
-    f.sellReturn,
-    f.advanceBalance,
-    f.openingBalance,
-    f.hasNoSellFrom,
-    f.customerGroupId,
-    f.assignedTo,
-    f.status,
-    isAdmin,
-  ]);
+  }, [q, f.purchaseDue, f.purchaseReturn, f.advanceBalance, f.openingBalance, f.assignedTo, f.status, isAdmin]);
 
-  // close columns popover on outside click / ESC
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
       if (!colsOpen) return;
@@ -214,24 +202,16 @@ export default function CustomersPage() {
     };
   }, [colsOpen]);
 
-  // -------- Print helpers --------
   function onPrint() {
-    // update printed time right before printing (optional but nice)
     setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
     window.print();
   }
-
-  // ✅ Export PDF without API: open print dialog (user Save as PDF)
   function onExportPdf() {
     setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
     window.print();
   }
 
-  // dynamic footer colSpan
   const visibleKeys = (Object.keys(cols) as ColKey[]).filter((k) => cols[k]);
-  const footerMoneyKeys: ColKey[] = ["openingBalance", "advanceBalance", "saleDue", "returnDue"];
-  const footerMoneyVisible = footerMoneyKeys.filter((k) => cols[k]);
-  const labelSpan = 1 /*Action*/ + visibleKeys.length - footerMoneyVisible.length;
 
   const inputBase =
     "w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm " +
@@ -242,21 +222,18 @@ export default function CustomersPage() {
     "hover:bg-slate-50 active:scale-[0.99] transition";
 
   return (
-    <div className=" p-6 relative  w-full">
-      <div className=" w-full max-w-5xl">
-        {/* ✅ SINGLE GLOBAL PRINT CSS (no duplicate) */}
+    <div className="p-6 relative w-full">
+      <div className="w-full max-w-5xl">
         <style jsx global>{`
           @media print {
             body * {
               visibility: hidden !important;
             }
-
-            #customers-print-area,
-            #customers-print-area * {
+            #suppliers-print-area,
+            #suppliers-print-area * {
               visibility: visible !important;
             }
-
-            #customers-print-area {
+            #suppliers-print-area {
               position: absolute !important;
               left: 0 !important;
               top: 0 !important;
@@ -264,16 +241,12 @@ export default function CustomersPage() {
               padding: 0 !important;
               margin: 0 !important;
             }
-
-            /* hide action + controls inside print */
             .no-print {
               display: none !important;
             }
-
             table {
               border-collapse: collapse !important;
             }
-
             th,
             td {
               border: 1px solid #ddd !important;
@@ -284,8 +257,8 @@ export default function CustomersPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-2xl font-semibold text-slate-900">Customers</div>
-            <div className="text-sm text-slate-500">Manage your Customers</div>
+            <div className="text-2xl font-semibold text-slate-900">Suppliers</div>
+            <div className="text-sm text-slate-500">Manage your Suppliers</div>
           </div>
 
           <button
@@ -299,7 +272,7 @@ export default function CustomersPage() {
           </button>
         </div>
 
-        {/* Filters */}
+        {/* Filters (image #1) */}
         <div className="mt-6 bg-white border border-slate-200 rounded-2xl shadow-sm no-print">
           <button
             className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-slate-700"
@@ -314,21 +287,21 @@ export default function CustomersPage() {
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
-                  checked={f.sellDue}
-                  onChange={(e) => setF({ ...f, sellDue: e.target.checked })}
+                  checked={f.purchaseDue}
+                  onChange={(e) => setF({ ...f, purchaseDue: e.target.checked })}
                   className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-200"
                 />
-                Sell Due
+                Purchase Due
               </label>
 
               <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
-                  checked={f.sellReturn}
-                  onChange={(e) => setF({ ...f, sellReturn: e.target.checked })}
+                  checked={f.purchaseReturn}
+                  onChange={(e) => setF({ ...f, purchaseReturn: e.target.checked })}
                   className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-200"
                 />
-                Sell Return
+                Purchase Return
               </label>
 
               <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -350,27 +323,6 @@ export default function CustomersPage() {
                 />
                 Opening Balance
               </label>
-
-              <div>
-                <div className="text-xs mb-1 text-slate-500">Has no sell from</div>
-                <input
-                  type="date"
-                  className={inputBase}
-                  value={f.hasNoSellFrom}
-                  onChange={(e) => setF({ ...f, hasNoSellFrom: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <div className="text-xs mb-1 text-slate-500">Customer Group</div>
-                <select
-                  className={inputBase}
-                  value={f.customerGroupId}
-                  onChange={(e) => setF({ ...f, customerGroupId: e.target.value })}
-                >
-                  <option value="">None</option>
-                </select>
-              </div>
 
               <div>
                 <div className="text-xs mb-1 text-slate-500">Assigned to</div>
@@ -428,11 +380,9 @@ export default function CustomersPage() {
               Export Excel
             </a>
 
-            {/* ✅ No API PDF. This uses browser "Save as PDF" */}
             <button className={pillBtn} onClick={onExportPdf}>
               Export PDF
             </button>
-
             <button className={pillBtn} onClick={onPrint}>
               Print
             </button>
@@ -448,18 +398,19 @@ export default function CustomersPage() {
                     {(
                       [
                         ["contactId", "Contact ID"],
-                        ["name", "Business/Name"],
+                        ["businessName", "Business Name"],
+                        ["name", "Name"],
                         ["email", "Email"],
-                        ["mobile", "Mobile"],
                         ["taxNumber", "Tax number"],
-                        ["creditLimit", "Credit limit"],
                         ["payTerm", "Pay term"],
                         ["openingBalance", "Opening Balance"],
                         ["advanceBalance", "Advance Balance"],
-                        ["saleDue", "Total Sale Due"],
-                        ["returnDue", "Sell Return Due"],
+                        ["createdAt", "Added On"],
+                        ["address", "Address"],
+                        ["mobile", "Mobile"],
+                        ["purchaseDue", "Total Purchase Due"],
+                        ["purchaseReturnDue", "Total Purchase Return Due"],
                         ["status", "Status"],
-                        ["createdAt", "Created At"], // ✅ NEW
                       ] as Array<[ColKey, string]>
                     ).map(([k, label]) => (
                       <label key={k} className="flex items-center gap-2 text-sm py-1.5 text-slate-700">
@@ -487,99 +438,38 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          <input
-            className={"w-48 md:w-56 lg:w-64 " + inputBase}
-            placeholder="Search..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+          <input className={"w-48 md:w-56 lg:w-64 " + inputBase} placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
 
-        {/* ✅ PRINT AREA */}
-        <div id="customers-print-area" className="mt-6">
-          {/* print-only header */}
+        {/* PRINT AREA */}
+        <div id="suppliers-print-area" className="mt-6">
           <div className="hidden print:block mb-3">
-            <div className="text-lg font-semibold">Customers</div>
+            <div className="text-lg font-semibold">Suppliers</div>
             <div className="text-sm">Total records: {total}</div>
-            {/* ✅ FIXED: no new Date() directly in render */}
             <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-            <table className="min-w-full w-full text-sm">
+            <table className="min-w-[1200px] w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">
                     Action
                   </th>
 
-                  {cols.contactId && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Contact ID
-                    </th>
-                  )}
-                  {cols.name && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Business/Name
-                    </th>
-                  )}
-                  {cols.email && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Email
-                    </th>
-                  )}
-                  {cols.mobile && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Mobile
-                    </th>
-                  )}
-                  {cols.taxNumber && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Tax number
-                    </th>
-                  )}
-                  {cols.creditLimit && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Credit limit
-                    </th>
-                  )}
-                  {cols.payTerm && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Pay term
-                    </th>
-                  )}
-                  {cols.openingBalance && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Opening Balance
-                    </th>
-                  )}
-                  {cols.advanceBalance && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Advance Balance
-                    </th>
-                  )}
-                  {cols.saleDue && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Total Sale Due
-                    </th>
-                  )}
-                  {cols.returnDue && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Sell Return Due
-                    </th>
-                  )}
-                  {cols.status && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Status
-                    </th>
-                  )}
-
-                  {/* ✅ NEW COLUMN HEADER */}
-                  {cols.createdAt && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                      Created At
-                    </th>
-                  )}
+                  {cols.contactId && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Contact ID</th>}
+                  {cols.businessName && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Business Name</th>}
+                  {cols.name && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Name</th>}
+                  {cols.email && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Email</th>}
+                  {cols.taxNumber && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Tax number</th>}
+                  {cols.payTerm && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Pay term</th>}
+                  {cols.openingBalance && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Opening Balance</th>}
+                  {cols.advanceBalance && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Advance Balance</th>}
+                  {cols.createdAt && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Added On</th>}
+                  {cols.address && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Address</th>}
+                  {cols.mobile && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Mobile</th>}
+                  {cols.purchaseDue && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Total Purchase Due</th>}
+                  {cols.purchaseReturnDue && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Total Purchase Return Due</th>}
                 </tr>
               </thead>
 
@@ -603,7 +493,7 @@ export default function CustomersPage() {
                             setAddOpen(true);
                           }}
                           onToggleActive={async () => {
-                            await fetch(`/api/erp/customers/${r._id}`, {
+                            await fetch(`/api/erp/suppliers/${r._id}`, {
                               method: "PATCH",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({ status: r.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" }),
@@ -612,7 +502,7 @@ export default function CustomersPage() {
                           }}
                           onDelete={async () => {
                             if (!confirm("Delete?")) return;
-                            const res = await fetch(`/api/erp/customers/${r._id}`, { method: "DELETE" });
+                            const res = await fetch(`/api/erp/suppliers/${r._id}`, { method: "DELETE" });
                             if (!res.ok) alert("Failed");
                             load();
                           }}
@@ -620,43 +510,21 @@ export default function CustomersPage() {
                       </td>
 
                       {cols.contactId && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.contactId}</td>}
-                      {cols.name && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.businessName || r.name}</td>
-                      )}
+                      {cols.businessName && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.businessName || "-"}</td>}
+                      {cols.name && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.name || "-"}</td>}
                       {cols.email && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.email || "-"}</td>}
-                      {cols.mobile && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.mobile}</td>}
+                      {cols.taxNumber && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.moreInfo?.taxNumber || "-"}</td>}
+                      {cols.payTerm && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.moreInfo?.payTerm || "-"}</td>}
 
-                      {cols.taxNumber && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.moreInfo?.taxNumber || "-"}</td>
-                      )}
-                      {cols.creditLimit && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.moreInfo?.creditLimit ?? "-"}</td>
-                      )}
-                      {cols.payTerm && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.moreInfo?.payTerm || "-"}</td>
-                      )}
+                      {cols.openingBalance && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">Rs. {money(r.totals?.openingBalanceDue)}</td>}
+                      {cols.advanceBalance && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">Rs. {money(r.totals?.advanceBalance)}</td>}
+                      {cols.createdAt && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{fmtDate(r.createdAt)}</td>}
+                      {cols.address && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{buildAddress(r)}</td>}
+                      {cols.mobile && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.mobile || "-"}</td>}
 
-                      {cols.openingBalance && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
-                          Rs. {money(r.totals?.openingBalanceDue)}
-                        </td>
-                      )}
-                      {cols.advanceBalance && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">Rs. {money(r.totals?.advanceBalance)}</td>
-                      )}
-                      {cols.saleDue && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">Rs. {money(r.totals?.totalSaleDue)}</td>
-                      )}
-                      {cols.returnDue && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
-                          Rs. {money(r.totals?.totalSaleReturnDue)}
-                        </td>
-                      )}
-                      {cols.status && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.status}</td>}
-
-                      {/* ✅ NEW: createdAt cell */}
-                      {cols.createdAt && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{fmtDate(r.createdAt)}</td>
+                      {cols.purchaseDue && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">Rs. {money(r.totals?.totalPurchaseDue)}</td>}
+                      {cols.purchaseReturnDue && (
+                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">Rs. {money(r.totals?.totalPurchaseReturnDue)}</td>
                       )}
                     </tr>
                   ))
@@ -671,28 +539,26 @@ export default function CustomersPage() {
 
               <tfoot>
                 <tr className="border-t border-slate-200 bg-slate-50">
-                  <td className="px-4 py-3 font-semibold text-slate-700" colSpan={Math.max(1, labelSpan)}>
+                  <td className="px-4 py-3 font-semibold text-slate-700" colSpan={Math.max(1, 6)}>
                     Total:
                   </td>
 
                   {cols.openingBalance && (
-                    <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">
-                      Rs. {money(totals.openingBalanceDue)}
-                    </td>
+                    <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">Rs. {money(totals.openingBalanceDue)}</td>
                   )}
                   {cols.advanceBalance && (
                     <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">Rs. {money(totals.advanceBalance)}</td>
                   )}
-                  {cols.saleDue && (
-                    <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">Rs. {money(totals.totalSaleDue)}</td>
-                  )}
-                  {cols.returnDue && (
-                    <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">
-                      Rs. {money(totals.totalSaleReturnDue)}
-                    </td>
-                  )}
+                  {cols.createdAt && <td className="px-4 py-3" />}
+                  {cols.address && <td className="px-4 py-3" />}
+                  {cols.mobile && <td className="px-4 py-3" />}
 
-                  {footerMoneyVisible.length === 0 && <td className="px-4 py-3" />}
+                  {cols.purchaseDue && (
+                    <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">Rs. {money(totals.totalPurchaseDue)}</td>
+                  )}
+                  {cols.purchaseReturnDue && (
+                    <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">Rs. {money(totals.totalPurchaseReturnDue)}</td>
+                  )}
                 </tr>
               </tfoot>
             </table>
@@ -719,15 +585,7 @@ export default function CustomersPage() {
         </div>
 
         {/* Modals */}
-        <CustomerFormModal
-          open={addOpen}
-          onClose={() => setAddOpen(false)}
-          initial={editRow}
-          onSaved={load}
-          isAdmin={isAdmin}
-          users={users}
-        />
-
+        <CustomerFormModal open={addOpen} onClose={() => setAddOpen(false)} initial={editRow} onSaved={load} isAdmin={isAdmin} users={users} />
         <PayModal open={Boolean(payRow)} onClose={() => setPayRow(null)} contact={payRow} onSaved={load} />
       </div>
     </div>

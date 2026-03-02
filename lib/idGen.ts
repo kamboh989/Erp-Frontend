@@ -1,6 +1,6 @@
 import Counter from "@/models/CustomerCounter";
 
-export async function nextContactId(companyId: string, key: "CONTACT_CUSTOMER" | "CONTACT_SUPPLIER") {
+export async function nextContactId(companyId: string, key: "CONTACT_CUSTOMER") {
   const c = await Counter.findOneAndUpdate(
     { companyId, key },
     { $inc: { seq: 1 } },

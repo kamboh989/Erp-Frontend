@@ -1,6 +1,6 @@
 import mongoose, { Schema, Types } from "mongoose";
 
-const ContactNoteSchema = new Schema(
+const SupplierNoteSchema = new Schema(
   {
     companyId: { type: Types.ObjectId, required: true, index: true },
     contactId: { type: Types.ObjectId, required: true, index: true },
@@ -19,7 +19,7 @@ const ContactNoteSchema = new Schema(
   { timestamps: true },
 );
 
-ContactNoteSchema.index({ companyId: 1, contactId: 1, createdAt: -1 });
+SupplierNoteSchema.index({ companyId: 1, contactId: 1, createdAt: -1 });
 
-export default mongoose.models.ContactNote ||
-  mongoose.model("CustomerNote", ContactNoteSchema);
+export default mongoose.models.SupplierNote ||
+  mongoose.model("SupplierNote", SupplierNoteSchema);
