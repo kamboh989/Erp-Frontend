@@ -206,7 +206,7 @@ export function CustomerFormModal({
         <div className="p-6 overflow-y-auto flex-1">
           {/* Party type */}
           <div className="flex flex-wrap items-center gap-4">
-            <div className="text-sm font-medium text-slate-700">Customer type</div>
+            <div className="text-sm font-medium text-slate-700">Supplier type</div>
 
             <label className="text-sm flex items-center gap-2 text-slate-700">
               <input
@@ -249,13 +249,13 @@ export function CustomerFormModal({
               <div className={labelBase}>Email</div>
               <input className={inputBase} value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
-
+{/* 
             <div className="space-y-1">
               <div className={labelBase}>Customer Group</div>
               <select className={selectBase} value={customerGroupId} onChange={(e) => setCustomerGroupId(e.target.value)}>
                 <option value="">None</option>
               </select>
-            </div>
+            </div> */}
 
             <div className="space-y-1">
               <div className={labelBase}>Date of birth</div>

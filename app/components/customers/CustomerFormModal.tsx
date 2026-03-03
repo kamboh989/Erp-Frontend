@@ -250,12 +250,12 @@ export function CustomerFormModal({
               <input className={inputBase} value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
 
-            <div className="space-y-1">
+            {/* <div className="space-y-1">
               <div className={labelBase}>Customer Group</div>
               <select className={selectBase} value={customerGroupId} onChange={(e) => setCustomerGroupId(e.target.value)}>
                 <option value="">None</option>
               </select>
-            </div>
+            </div> */}
 
             <div className="space-y-1">
               <div className={labelBase}>Date of birth</div>

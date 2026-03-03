@@ -281,11 +281,11 @@ export default function SupplierViewPage() {
               <select className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm">
                 <option>Show 25 entries</option>
               </select>
-              <button className={pillBtn}>Export CSV</button>
+              {/* <button className={pillBtn}>Export CSV</button>
               <button className={pillBtn}>Export Excel</button>
               <button className={pillBtn}>Print</button>
               <button className={pillBtn}>Column visibility</button>
-              <button className={pillBtn}>Export PDF</button>
+              <button className={pillBtn}>Export PDF</button> */}
             </div>
 
             <input className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm" placeholder="Search ..." />
@@ -345,11 +345,11 @@ export default function SupplierViewPage() {
               <select className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm">
                 <option>Show 25 entries</option>
               </select>
-              <button className={pillBtn}>Export CSV</button>
+              {/* <button className={pillBtn}>Export CSV</button>
               <button className={pillBtn}>Export Excel</button>
               <button className={pillBtn}>Print</button>
               <button className={pillBtn}>Column visibility</button>
-              <button className={pillBtn}>Export PDF</button>
+              <button className={pillBtn}>Export PDF</button> */}
             </div>
 
             <input className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm" placeholder="Search ..." />

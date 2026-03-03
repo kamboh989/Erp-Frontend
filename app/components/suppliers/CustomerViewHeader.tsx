@@ -30,14 +30,14 @@ export function CustomerViewHeader({ current }: { current: any }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex items-start justify-between gap-4">
       <div>
-        <div className="text-lg font-semibold text-slate-900">View Contact</div>
+        <div className="text-lg font-semibold text-slate-900">View Supplier</div>
         <div className="text-sm text-slate-500 mt-0.5">
           {current?.contactId} — {current?.businessName || current?.name}
         </div>
       </div>
 
       <div className="w-full max-w-[320px]">
-        <div className="text-xs mb-1 text-slate-500">Quick switch customer</div>
+        <div className="text-xs mb-1 text-slate-500">Quick switch supplier</div>
         <select
           className={selectBase}
           disabled={loading}
@@ -51,7 +51,7 @@ export function CustomerViewHeader({ current }: { current: any }) {
           ))}
         </select>
 
-        {loading && <div className="text-xs text-slate-400 mt-1">Loading customers…</div>}
+        {loading && <div className="text-xs text-slate-400 mt-1">Loading supplier…</div>}
       </div>
     </div>
   );
