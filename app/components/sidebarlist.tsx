@@ -21,6 +21,7 @@ import {
   BarChart3,
   Settings,
   Shield,
+  Tags, // ✅ NEW (for categories)
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -68,8 +69,13 @@ const MENU: MenuItem[] = [
         label: "Products",
         icon: Boxes,
         children: [
-          { label: "List of Products", href: "/erp/products", icon: Package, module: "ERP_PRODUCTS_LIST" },
+          { label: "List of Products", href: "/erp/products/list-of-product", icon: Package, module: "ERP_PRODUCTS_LIST" },
           { label: "Add New Product", href: "/erp/products/new", icon: PlusSquare, module: "ERP_PRODUCTS_ADD" },
+
+          // ✅ NEW: Categories
+          { label: "Categories", href: "/erp/products/categories", icon: Tags, module: "ERP_CATEGORIES" },
+
+          // ✅ Existing: Units
           { label: "Units", href: "/erp/products/units", icon: Scale, module: "ERP_UNITS" },
         ],
       },
@@ -171,16 +177,14 @@ export default function SidebarList() {
     return MENU.map(filterItem).filter(Boolean) as MenuItem[];
   }, [allowedSet, loaded, isAdmin]);
 
-  const toggleMenu = (label: string) =>
-    setOpenMenus((p) => ({ ...p, [label]: !p[label] }));
+  const toggleMenu = (label: string) => setOpenMenus((p) => ({ ...p, [label]: !p[label] }));
 
   if (!loaded) return null;
 
   const base3D = "transition-all duration-300 ease-out transform rounded";
   const hover3D =
     "hover:-translate-y-[1px] hover:shadow-lg hover:bg-gradient-to-r hover:from-zinc-100 hover:to-blue-200";
-  const active3D =
-    "bg-gradient-to-r from-zinc-100 to-blue-300 shadow-lg -translate-y-[1px]";
+  const active3D = "bg-gradient-to-r from-zinc-100 to-blue-300 shadow-lg -translate-y-[1px]";
 
   function isAnyChildActive(item: MenuItem): boolean {
     if (!item.children?.length) return Boolean(item.href && pathname === item.href);
@@ -206,32 +210,24 @@ export default function SidebarList() {
                 >
                   <div className="flex items-center gap-2">
                     <Icon size={18} className="text-gray-500" />
-                    <span className="font-semibold text-gray-800">
-                      {item.label}
-                    </span>
+                    <span className="font-semibold text-gray-800">{item.label}</span>
                   </div>
 
                   <ChevronDown
                     size={16}
-                    className={`transition-transform duration-300 text-gray-500 ${
-                      openMenus[item.label] ? "rotate-180" : ""
-                    }`}
+                    className={`transition-transform duration-300 text-gray-500 ${openMenus[item.label] ? "rotate-180" : ""}`}
                   />
                 </div>
 
                 <ul
                   className={`pl-6 overflow-hidden transition-all duration-300 ease-in-out ${
-                    openMenus[item.label]
-                      ? "max-h-[999px] opacity-100"
-                      : "max-h-0 opacity-0"
+                    openMenus[item.label] ? "max-h-[999px] opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
                   {item.children.map((child) => {
                     const childHasKids = Boolean(child.children?.length);
                     const ChildIcon = child.icon;
-                    const childParentActive = childHasKids
-                      ? isAnyChildActive(child)
-                      : false;
+                    const childParentActive = childHasKids ? isAnyChildActive(child) : false;
 
                     return (
                       <li key={child.href || child.label} className="mt-2">
@@ -245,29 +241,22 @@ export default function SidebarList() {
                             >
                               <div className="flex items-center gap-2">
                                 <ChildIcon size={16} className="text-gray-500" />
-                                <span className="font-semibold text-gray-800">
-                                  {child.label}
-                                </span>
+                                <span className="font-semibold text-gray-800">{child.label}</span>
                               </div>
 
                               <ChevronDown
                                 size={14}
-                                className={`transition-transform duration-300 text-gray-500 ${
-                                  openMenus[child.label] ? "rotate-180" : ""
-                                }`}
+                                className={`transition-transform duration-300 text-gray-500 ${openMenus[child.label] ? "rotate-180" : ""}`}
                               />
                             </div>
 
                             <ul
                               className={`pl-6 overflow-hidden transition-all duration-300 ease-in-out ${
-                                openMenus[child.label]
-                                  ? "max-h-[999px] opacity-100"
-                                  : "max-h-0 opacity-0"
+                                openMenus[child.label] ? "max-h-[999px] opacity-100" : "max-h-0 opacity-0"
                               }`}
                             >
                               {child.children!.map((leaf) => {
-                                const isLeafActive =
-                                  leaf.href && pathname === leaf.href;
+                                const isLeafActive = leaf.href && pathname === leaf.href;
                                 const LeafIcon = leaf.icon;
 
                                 return (
@@ -305,9 +294,7 @@ export default function SidebarList() {
             ) : (
               <Link
                 href={item.href!}
-                className={`flex items-center gap-2 px-3 py-2 ${base3D} ${hover3D} ${
-                  isActive ? active3D : ""
-                }`}
+                className={`flex items-center gap-2 px-3 py-2 ${base3D} ${hover3D} ${isActive ? active3D : ""}`}
               >
                 <Icon size={18} className="text-gray-600" />
                 {item.label}

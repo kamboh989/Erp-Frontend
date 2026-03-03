@@ -22,7 +22,7 @@ export const MODULES = {
   ERP_PRODUCTS: {
     label: "Products",
     group: "ERP",
-    implies: ["ERP_PRODUCTS_LIST", "ERP_PRODUCTS_ADD", "ERP_UNITS"],
+    implies: ["ERP_PRODUCTS_LIST", "ERP_PRODUCTS_ADD", "ERP_UNITS", "ERP_CATEGORIES"],
   },
 
   ERP_PURCHASE: {
@@ -39,6 +39,9 @@ export const MODULES = {
   ERP_PRODUCTS_LIST: { label: "List of Products", group: "ERP" },
   ERP_PRODUCTS_ADD: { label: "Add New Product", group: "ERP" },
   ERP_UNITS: { label: "Units", group: "ERP" },
+
+  // ✅ NEW: ERP → Products → Categories
+  ERP_CATEGORIES: { label: "Categories", group: "ERP" },
 
   // ERP → Purchase
   ERP_PURCHASE_ORDER: { label: "Purchase Order", group: "ERP" },
