@@ -23,4 +23,4 @@ const SupplierPaymentSchema = new Schema(
 SupplierPaymentSchema.index({ companyId: 1, contactId: 1, paidOn: -1 });
 
 export default mongoose.models.SupplierPayment ||
-  mongoose.model("CustomerPayment", SupplierPaymentSchema);
+  mongoose.model("SupplierPayment", SupplierPaymentSchema);
