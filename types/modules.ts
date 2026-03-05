@@ -28,7 +28,16 @@ export const MODULES = {
   ERP_PURCHASE: {
     label: "Purchase",
     group: "ERP",
-    implies: ["ERP_PURCHASE_ORDER", "ERP_PURCHASE_LIST", "ERP_PURCHASE_ADD"],
+    implies: [
+      "ERP_PURCHASE_ORDER",
+      "ERP_PURCHASE_LIST",
+      "ERP_PURCHASE_ADD",
+
+      // ✅ NEW: Purchase Returns
+      "ERP_PURCHASE_RETURN",
+      "ERP_PURCHASE_RETURN_LIST",
+      "ERP_PURCHASE_RETURN_ADD",
+    ],
   },
 
   // ERP → Contacts
@@ -40,13 +49,25 @@ export const MODULES = {
   ERP_PRODUCTS_ADD: { label: "Add New Product", group: "ERP" },
   ERP_UNITS: { label: "Units", group: "ERP" },
 
-  // ✅ NEW: ERP → Products → Categories
+  // ✅ ERP → Products → Categories
   ERP_CATEGORIES: { label: "Categories", group: "ERP" },
 
   // ERP → Purchase
   ERP_PURCHASE_ORDER: { label: "Purchase Order", group: "ERP" },
   ERP_PURCHASE_LIST: { label: "List Purchase", group: "ERP" },
   ERP_PURCHASE_ADD: { label: "Add Purchase", group: "ERP" },
+
+  // ✅ NEW: ERP → Purchase → Returns
+  ERP_PURCHASE_RETURN: {
+    label: "Purchase Return",
+    group: "ERP",
+    implies: ["ERP_PURCHASE_RETURN_LIST", "ERP_PURCHASE_RETURN_ADD"],
+  },
+  ERP_PURCHASE_RETURN_LIST: { label: "Purchase Return List", group: "ERP" },
+
+  // NOTE: single-page module ho to bhi ADD permission useful rehti hai
+  // (staff ko list allow, add off)
+  ERP_PURCHASE_RETURN_ADD: { label: "Add Purchase Return", group: "ERP" },
 
   // Common
   REPORTS: { label: "Reports", group: "Common" },

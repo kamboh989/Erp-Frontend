@@ -21,7 +21,8 @@ import {
   BarChart3,
   Settings,
   Shield,
-  Tags, // ✅ NEW (for categories)
+  Tags,
+  RotateCcw, // ✅ NEW: returns icon
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -54,7 +55,7 @@ const MENU: MenuItem[] = [
     label: "ERP",
     icon: Building2,
     children: [
-      // ✅ Contacts
+      // Contacts
       {
         label: "Contacts",
         icon: Users,
@@ -64,7 +65,7 @@ const MENU: MenuItem[] = [
         ],
       },
 
-      // ✅ Products
+      // Products
       {
         label: "Products",
         icon: Boxes,
@@ -72,22 +73,22 @@ const MENU: MenuItem[] = [
           { label: "List of Products", href: "/erp/products/list-of-product", icon: Package, module: "ERP_PRODUCTS_LIST" },
           { label: "Add New Product", href: "/erp/products/new", icon: PlusSquare, module: "ERP_PRODUCTS_ADD" },
 
-          // ✅ NEW: Categories
           { label: "Categories", href: "/erp/products/categories", icon: Tags, module: "ERP_CATEGORIES" },
-
-          // ✅ Existing: Units
           { label: "Units", href: "/erp/products/units", icon: Scale, module: "ERP_UNITS" },
         ],
       },
 
-      // ✅ Purchase
+      // Purchase
       {
         label: "Purchase",
         icon: ShoppingCart,
         children: [
-          { label: "Purchase Order", href: "/erp/purchase/orders", icon: ClipboardList, module: "ERP_PURCHASE_ORDER" },
-          { label: "List Purchase", href: "/erp/purchase", icon: Receipt, module: "ERP_PURCHASE_LIST" },
+          { label: "Purchase Order", href: "/erp/purchase/order", icon: ClipboardList, module: "ERP_PURCHASE_ORDER" },
+          { label: "List Purchase", href: "/erp/purchase/list", icon: Receipt, module: "ERP_PURCHASE_LIST" },
           { label: "Add Purchase", href: "/erp/purchase/new", icon: PlusSquare, module: "ERP_PURCHASE_ADD" },
+
+          // ✅ NEW: Purchase Returns (single page)
+          { label: "Purchase Returns", href: "/erp/purchase/return", icon: RotateCcw, module: "ERP_PURCHASE_RETURN_LIST" },
         ],
       },
     ],
@@ -96,7 +97,6 @@ const MENU: MenuItem[] = [
   { label: "Reports", href: "/reports", icon: BarChart3, module: "REPORTS" },
   { label: "Settings", href: "/settings", icon: Settings, module: "SETTINGS" },
 
-  // ✅ Admin page
   { label: "Admin", href: "/admin", icon: Shield, adminOnly: true },
 ];
 
@@ -156,20 +156,16 @@ export default function SidebarList() {
     if (!loaded) return [];
 
     const filterItem = (item: MenuItem): MenuItem | null => {
-      // ✅ Admin gating
       if (item.adminOnly && !isAdmin) return null;
 
-      // ✅ Children recursion
       if (item.children?.length) {
         const kids = item.children.map(filterItem).filter(Boolean) as MenuItem[];
         if (kids.length === 0) return null;
         return { ...item, children: kids };
       }
 
-      // ✅ Admin link has no module, still allow it
       if (item.adminOnly && item.href) return item;
 
-      // ✅ Normal leaf module gating
       if (!item.module) return null;
       return hasAccess(allowedSet, item.module) ? item : null;
     };

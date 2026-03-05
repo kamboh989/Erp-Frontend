@@ -7,7 +7,15 @@ import { CustomerViewHeader } from "@/app/components/suppliers/CustomerViewHeade
 import { NotesModal } from "@/app/components/suppliers/Notesmodal";
 import { ContactPersonsPanel } from "@/app/components/suppliers/ContactPersonsPanel";
 
-type Tab = "LEDGER" | "PURCHASES" | "STOCK_REPORT" | "DOCS" | "PAYMENTS" | "ACTIVITIES" | "CONTACT_PERSONS";
+type Tab =
+  | "LEDGER"
+  | "PURCHASES"
+  | "ORDERS" // ✅ NEW
+  | "STOCK_REPORT"
+  | "DOCS"
+  | "PAYMENTS"
+  | "ACTIVITIES"
+  | "CONTACT_PERSONS";
 
 function fmtPK(v: any) {
   if (!v) return "-";
@@ -16,10 +24,22 @@ function fmtPK(v: any) {
   return d.toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
 }
 
+function money(v: any) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function buildAddress(contact: any) {
   const a = contact?.moreInfo?.billingAddress || {};
   const parts = [a.line1, a.line2, a.city, a.state, a.country, a.zip].filter(Boolean);
   return parts.length ? parts.join(", ") : "-";
+}
+
+function badge(status: string) {
+  const s = String(status || "").toUpperCase();
+  if (s === "FINAL") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (s === "CANCELLED") return "border-rose-200 bg-rose-50 text-rose-700";
+  return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
 export default function SupplierViewPage() {
@@ -46,6 +66,11 @@ export default function SupplierViewPage() {
   const [purchaseDateRange, setPurchaseDateRange] = useState("01/01/2026 - 12/31/2026");
   // Stock report UI state (placeholder)
   const [businessLocation, setBusinessLocation] = useState("All locations");
+
+  // ✅ NEW: Orders tab state
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersTotal, setOrdersTotal] = useState(0);
 
   function buildLedger(nextContact: any, nextPayments: any[]) {
     const rows: any[] = [];
@@ -137,6 +162,23 @@ export default function SupplierViewPage() {
     setActivities(data.rows || []);
   }
 
+  // ✅ NEW: load supplier orders
+  async function loadOrders() {
+    setOrdersLoading(true);
+    try {
+      const sp = new URLSearchParams();
+      sp.set("page", "1");
+      sp.set("limit", "25");
+      sp.set("supplierId", id); // ✅ IMPORTANT: API must support this
+      const res = await fetch(`/api/erp/purchase/order?${sp.toString()}`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      setOrders(Array.isArray(data.rows) ? data.rows : []);
+      setOrdersTotal(Number(data.total || 0));
+    } finally {
+      setOrdersLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadContact();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -149,6 +191,9 @@ export default function SupplierViewPage() {
     if (tab === "DOCS") loadNotes();
     if (tab === "ACTIVITIES") loadActivities();
     if (tab === "LEDGER") loadPayments();
+
+    // ✅ NEW
+    if (tab === "ORDERS") loadOrders();
   }, [tab, contact]);
 
   if (!contact) return <div className="p-6 text-slate-500">Loading...</div>;
@@ -166,27 +211,41 @@ export default function SupplierViewPage() {
     <div className="p-6 space-y-6 ">
       <CustomerViewHeader current={contact} />
 
-      {/* Top details (image #5 style) */}
+      {/* Top details */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col md:flex-row justify-between gap-4">
         <div className="text-sm text-slate-700 space-y-1">
-          <div className="font-semibold">{contact.businessName || contact.name} <span className="text-slate-500 font-normal">, Supplier</span></div>
-          <div><b>Address:</b> {buildAddress(contact)}</div>
-          <div><b>Business Name:</b> {contact.businessName || "-"}</div>
-          <div><b>Mobile:</b> {contact.mobile || "-"}</div>
+          <div className="font-semibold">
+            {contact.businessName || contact.name}{" "}
+            <span className="text-slate-500 font-normal">, Supplier</span>
+          </div>
+          <div>
+            <b>Address:</b> {buildAddress(contact)}
+          </div>
+          <div>
+            <b>Business Name:</b> {contact.businessName || "-"}
+          </div>
+          <div>
+            <b>Mobile:</b> {contact.mobile || "-"}
+          </div>
         </div>
 
         <div className="text-sm text-slate-700 space-y-1">
-          <div><b>Tax number:</b> {contact.moreInfo?.taxNumber || "-"}</div>
-        
-          <div><b>Pay term:</b> {contact.moreInfo?.payTerm || "-"}</div>
+          <div>
+            <b>Tax number:</b> {contact.moreInfo?.taxNumber || "-"}
+          </div>
+
+          <div>
+            <b>Pay term:</b> {contact.moreInfo?.payTerm || "-"}
+          </div>
         </div>
       </div>
 
-      {/* Tabs (image #3/#4) */}
+      {/* Tabs */}
       <div className="border-b border-slate-200 flex gap-4 text-sm flex-wrap">
         {[
           ["LEDGER", "Ledger"],
           ["PURCHASES", "Purchases"],
+          ["ORDERS", "Orders"], // ✅ NEW TAB
           ["STOCK_REPORT", "Stock Report"],
           ["DOCS", "Documents & Note"],
           ["PAYMENTS", "Payments"],
@@ -261,7 +320,7 @@ export default function SupplierViewPage() {
         </div>
       )}
 
-      {/* PURCHASES (image #3 placeholder table layout) */}
+      {/* PURCHASES (placeholder - as-is) */}
       {tab === "PURCHASES" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -274,21 +333,6 @@ export default function SupplierViewPage() {
                 onChange={(e) => setPurchaseDateRange(e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <select className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm">
-                <option>Show 25 entries</option>
-              </select>
-              {/* <button className={pillBtn}>Export CSV</button>
-              <button className={pillBtn}>Export Excel</button>
-              <button className={pillBtn}>Print</button>
-              <button className={pillBtn}>Column visibility</button>
-              <button className={pillBtn}>Export PDF</button> */}
-            </div>
-
-            <input className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm" placeholder="Search ..." />
           </div>
 
           <div className="overflow-auto border border-slate-200 rounded-2xl">
@@ -323,7 +367,80 @@ export default function SupplierViewPage() {
         </div>
       )}
 
-      {/* STOCK REPORT (image #4 placeholder layout) */}
+      {/* ✅ NEW: ORDERS TAB */}
+      {tab === "ORDERS" && (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <div className="text-sm font-semibold text-slate-800">Purchase Orders</div>
+              <div className="text-xs text-slate-500">Total: {ordersTotal}</div>
+            </div>
+
+            <a className={pillBtn} href="/erp/purchase/order">
+              View All Orders
+            </a>
+          </div>
+
+          <div className="overflow-auto border border-slate-200 rounded-2xl">
+            <table className="min-w-[900px] w-full">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className={tableHead}>Date</th>
+                  <th className={tableHead}>Reference</th>
+                  <th className={tableHead}>Location</th>
+                  <th className={tableHead}>Status</th>
+                  <th className={tableHead}>Total</th>
+                  <th className={tableHead}>Action</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {ordersLoading ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-sm text-slate-500">
+                      Loading...
+                    </td>
+                  </tr>
+                ) : orders.length ? (
+                  orders.map((r) => (
+                    <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className={tableCell}>{fmtPK(r.orderDate)}</td>
+                      <td className={tableCell}>{r.referenceNo}</td>
+                      <td className={tableCell}>{r.locationName || "-"}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge(r.status)}`}>
+                          {r.status}
+                        </span>
+                      </td>
+                      <td className={tableCell}>Rs {money(r.subtotal)}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <a
+                          className="text-xs border border-indigo-200 text-indigo-700 bg-indigo-50 rounded-lg px-3 py-1.5 hover:bg-indigo-100"
+                          href={`/erp/purchase/order/${r._id}`}
+                        >
+                          View
+                        </a>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-sm text-slate-500">
+                      No orders found for this supplier
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="text-xs text-slate-500">
+            Note: Orders do not affect stock/due until converted to Purchase (Bill).
+          </div>
+        </div>
+      )}
+
+      {/* STOCK REPORT (placeholder - as-is) */}
       {tab === "STOCK_REPORT" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -338,21 +455,6 @@ export default function SupplierViewPage() {
                 <option>All locations</option>
               </select>
             </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <select className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm">
-                <option>Show 25 entries</option>
-              </select>
-              {/* <button className={pillBtn}>Export CSV</button>
-              <button className={pillBtn}>Export Excel</button>
-              <button className={pillBtn}>Print</button>
-              <button className={pillBtn}>Column visibility</button>
-              <button className={pillBtn}>Export PDF</button> */}
-            </div>
-
-            <input className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm" placeholder="Search ..." />
           </div>
 
           <div className="overflow-auto border border-slate-200 rounded-2xl">
@@ -381,7 +483,7 @@ export default function SupplierViewPage() {
         </div>
       )}
 
-      {/* DOCS (same API) */}
+      {/* DOCS */}
       {tab === "DOCS" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 space-y-4">
           <div className="flex justify-between">
@@ -429,7 +531,7 @@ export default function SupplierViewPage() {
         </div>
       )}
 
-      {/* PAYMENTS (same API) */}
+      {/* PAYMENTS */}
       {tab === "PAYMENTS" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
           <div className="text-sm font-semibold text-slate-800 mb-3">Payments</div>
@@ -471,7 +573,7 @@ export default function SupplierViewPage() {
         </div>
       )}
 
-      {/* ACTIVITIES (same API) */}
+      {/* ACTIVITIES */}
       {tab === "ACTIVITIES" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
           <div className="text-sm font-semibold text-slate-800 mb-3">Activities</div>

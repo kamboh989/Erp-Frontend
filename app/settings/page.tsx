@@ -41,6 +41,13 @@ export default function SettingsHome() {
       desc: "Connect Meta to auto-create leads.",
       bar: "bg-gradient-to-r from-black to-blue-600",
     },
+    {
+  key: "SETTINGS_ERP_LOCATIONS",
+  href: "/settings/locations",
+  title: "ERP — Locations",
+  desc: "Manage warehouses / business locations (used in Purchase).",
+  bar: "bg-gradient-to-r from-emerald-600 to-teal-400",
+},
   ] as const;
 
   const visible = cards.filter((c) => allowedSet.has(c.key));
