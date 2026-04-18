@@ -345,7 +345,7 @@ export default function PurchaseOrdersPage() {
 
   return (
     <div className="p-6 w-full">
-      <div className="w-full max-w-6xl space-y-6">
+      <div className="w-full max-w-6xl space-y-6 mx-auto">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-2xl font-semibold text-slate-900">Purchase Orders</div>

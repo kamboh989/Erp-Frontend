@@ -7,7 +7,6 @@ import {
   Users,
   UserPlus,
   UserCheck,
-  Handshake,
   Building2,
   Boxes,
   ShoppingCart,
@@ -47,7 +46,7 @@ const MENU: MenuItem[] = [
     children: [
       { label: "Leads", href: "/crm/leads", icon: UserPlus, module: "CRM_LEADS" },
       { label: "Follow up", href: "/crm/followups", icon: UserCheck, module: "CRM_FOLLOWUPS" },
-      { label: "Deals", href: "/crm/deals", icon: Handshake, module: "CRM_DEALS" },
+    
     ],
   },
 
@@ -91,6 +90,28 @@ const MENU: MenuItem[] = [
           { label: "Purchase Returns", href: "/erp/purchase/return", icon: RotateCcw, module: "ERP_PURCHASE_RETURN_LIST" },
         ],
       },
+
+      {
+        label: "Sales",
+        icon: ShoppingCart,
+        children: [
+          { label: "List Sales", href: "/erp/sales/list", icon: Receipt, module: "ERP_SALES_LIST" },
+          { label: "Add Sale", href: "/erp/sales/new", icon: PlusSquare, module: "ERP_SALES_ADD" },
+          { label: "List Quotations", href: "/erp/sales/quotations", icon: ClipboardList, module: "ERP_SALES_QUOTATION_LIST" },
+          { label: "Add Quotation", href: "/erp/sales/quotations/new", icon: PlusSquare, module: "ERP_SALES_QUOTATION_ADD" },
+          { label: "Sale Returns", href: "/erp/sales/returns", icon: RotateCcw, module: "ERP_SALES_RETURN_LIST" },
+          { label: "Add Sale Return", href: "/erp/sales/returns/new", icon: PlusSquare, module: "ERP_SALES_RETURN_ADD" },
+        ],
+      },
+      // Stock Transfers
+      {
+        label: "Stock Transfers",
+        icon: Truck,
+        children: [
+          { label: "Stock Transfer List", href: "/erp/stock-transfers", icon: ClipboardList, module: "ERP_STOCK_TRANSFER_LIST" },
+          { label: "Add Stock Transfer", href: "/erp/stock-transfers/new", icon: PlusSquare, module: "ERP_STOCK_TRANSFER_ADD" },
+        ],
+      },
     ],
   },
 
@@ -110,6 +131,8 @@ export default function SidebarList() {
     Contacts: true,
     Products: true,
     Purchase: true,
+    Sales: true,
+    "Stock Transfers": true,
   });
 
   const [allowedSet, setAllowedSet] = useState<Set<string>>(new Set());
@@ -257,15 +280,22 @@ export default function SidebarList() {
 
                                 return (
                                   <li key={leaf.href || leaf.label} className="mt-1">
-                                    <Link
-                                      href={leaf.href!}
-                                      className={`flex items-center gap-2 px-2 py-1 text-gray-700 ${base3D} ${hover3D} ${
-                                        isLeafActive ? active3D : ""
-                                      }`}
-                                    >
-                                      <LeafIcon size={16} className="text-gray-500" />
-                                      {leaf.label}
-                                    </Link>
+                                    {leaf.href ? (
+                                      <Link
+                                        href={leaf.href}
+                                        className={`flex items-center gap-2 px-2 py-1 text-gray-700 ${base3D} ${hover3D} ${
+                                          isLeafActive ? active3D : ""
+                                        }`}
+                                      >
+                                        <LeafIcon size={16} className="text-gray-500" />
+                                        {leaf.label}
+                                      </Link>
+                                    ) : (
+                                      <div className={`flex items-center gap-2 px-2 py-1 text-gray-700 ${base3D} ${hover3D}`}>
+                                        <LeafIcon size={16} className="text-gray-500" />
+                                        {leaf.label}
+                                      </div>
+                                    )}
                                   </li>
                                 );
                               })}

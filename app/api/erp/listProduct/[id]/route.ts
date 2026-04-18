@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import { requireCompanyAuth, authErrorResponse } from "@/lib/auth";
+import { requireCompanyAuth, requireCompanyAdmin, authErrorResponse } from "@/lib/auth";
 import Product from "@/models/Product";
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   try {
     const session = await requireCompanyAuth(req);
+    requireCompanyAdmin(session);
     await connectDB();
 
     const { id } = await ctx.params;

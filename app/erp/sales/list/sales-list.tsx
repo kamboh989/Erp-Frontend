@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 type Row = any;
 type LocationRow = { _id: string; name: string };
@@ -15,49 +16,51 @@ function fmtPK(v: any) {
   if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleString("en-PK", { timeZone: "Asia/Karachi" });
 }
-function badge(status: string) {
+function badge(status?: string) {
   const s = String(status || "").toUpperCase();
   if (s === "FINAL") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (s === "CANCELLED") return "border-rose-200 bg-rose-50 text-rose-700";
   return "border-slate-200 bg-slate-50 text-slate-700";
 }
 
-export default function PurchasesPage() {
+export default function SalesList() {
+  const searchParams = useSearchParams();
+
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [locationId, setLocationId] = useState("");
+  const [customerId, setCustomerId] = useState("");
 
   const [locations, setLocations] = useState<LocationRow[]>([]);
-
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [totals, setTotals] = useState<{ grandTotal: number }>({ grandTotal: 0 });
-
-  const [loading, setLoading] = useState(false);
-
   const [can, setCan] = useState<{ admin: boolean; delete: boolean; cancel: boolean }>({
     admin: false,
     delete: false,
     cancel: false,
   });
 
-  // action dropdown
+  const [loading, setLoading] = useState(false);
   const [actionOpenId, setActionOpenId] = useState<string | null>(null);
 
-  // columns
-  type ColKey = "purchaseDate" | "referenceNo" | "supplier" | "location" | "status" | "grandTotal" | "addedBy" | "createdAt";
   const [colsOpen, setColsOpen] = useState(false);
   const colsMenuRef = useRef<HTMLDivElement | null>(null);
+  type ColKey = "saleDate" | "referenceNo" | "customer" | "location" | "status" | "grandTotal" | "paidAmount" | "dueAmount" | "paymentStatus" | "paymentMethod" | "addedBy" | "createdAt";
   const [cols, setCols] = useState<Record<ColKey, boolean>>({
-    purchaseDate: true,
+    saleDate: true,
     referenceNo: true,
-    supplier: true,
+    customer: true,
     location: true,
     status: true,
     grandTotal: true,
+    paidAmount: true,
+    dueAmount: true,
+    paymentStatus: true,
+    paymentMethod: true,
     addedBy: true,
     createdAt: true,
   });
@@ -73,31 +76,35 @@ export default function PurchasesPage() {
   const primaryBtn =
     "rounded-xl px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium shadow-sm hover:bg-indigo-700 active:scale-[0.99] transition";
 
-  const visibleCols = Object.entries(cols).filter(([, v]) => v).length;
-
   const exportCsvUrl = useMemo(() => {
     const sp = new URLSearchParams();
     if (q.trim()) sp.set("q", q.trim());
     if (status) sp.set("status", status);
     if (locationId) sp.set("locationId", locationId);
-    return `/api/erp/purchases/export/csv?${sp.toString()}`;
-  }, [q, status, locationId]);
+    if (customerId) sp.set("customerId", customerId);
+    return `/api/erp/sales/export/csv?${sp.toString()}`;
+  }, [q, status, locationId, customerId]);
 
   const exportExcelUrl = useMemo(() => {
     const sp = new URLSearchParams();
     if (q.trim()) sp.set("q", q.trim());
     if (status) sp.set("status", status);
     if (locationId) sp.set("locationId", locationId);
-    return `/api/erp/purchases/export/excel?${sp.toString()}`;
-  }, [q, status, locationId]);
+    if (customerId) sp.set("customerId", customerId);
+    return `/api/erp/sales/export/excel?${sp.toString()}`;
+  }, [q, status, locationId, customerId]);
 
-  // print/pdf
   const [printedAt, setPrintedAt] = useState("");
-  useEffect(() => setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" })), []);
+
+  useEffect(() => {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
+  }, []);
+
   function onPrint() {
     setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
     window.print();
   }
+
   function onExportPdf() {
     setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
     window.print();
@@ -126,14 +133,14 @@ export default function PurchasesPage() {
       if (q.trim()) sp.set("q", q.trim());
       if (status) sp.set("status", status);
       if (locationId) sp.set("locationId", locationId);
+      if (customerId) sp.set("customerId", customerId);
 
-      const res = await fetch(`/api/erp/purchases?${sp.toString()}`, { cache: "no-store" });
+      const res = await fetch(`/api/erp/sales?${sp.toString()}`, { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
 
       setRows(Array.isArray(data.rows) ? data.rows : []);
       setTotal(Number(data.total || 0));
       setTotals({ grandTotal: money(data.totals?.grandTotal) });
-
       setCan({
         admin: Boolean(data.can?.admin),
         delete: Boolean(data.can?.delete),
@@ -144,16 +151,42 @@ export default function PurchasesPage() {
     }
   }
 
-  useEffect(() => {
-    loadLocations();
+  async function cancelSale(id: string) {
+    if (!can.cancel) return alert("Not allowed");
+    if (!confirm("Cancel this FINAL sale? This will reverse stock + customer due.")) return;
+
+    const res = await fetch(`/api/erp/sales/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "CANCEL" }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(data?.error || "Failed");
     load();
+  }
+
+  async function deleteDraft(id: string) {
+    if (!can.delete) return alert("Not allowed");
+    if (!confirm("Delete this DRAFT sale?")) return;
+
+    const res = await fetch(`/api/erp/sales/${id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return alert(data?.error || "Failed");
+    load();
+  }
+
+  useEffect(() => {
+    const cid = searchParams?.get("customerId") || "";
+    setCustomerId(cid);
+    loadLocations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, limit]);
+  }, [page, limit, customerId]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -161,19 +194,19 @@ export default function PurchasesPage() {
       load();
     }, 350);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, status, locationId]);
 
-  // close menus outside click / ESC
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
+      const target = e.target as HTMLElement;
       if (colsOpen) {
         const el = colsMenuRef.current;
-        if (el && e.target instanceof Node && !el.contains(e.target)) setColsOpen(false);
+        if (!el || !target.closest("[data-action-anchor]") && !el.contains(target)) {
+          setColsOpen(false);
+        }
       }
-      if (actionOpenId) {
-        const t = e.target as HTMLElement;
-        if (!t.closest?.("[data-action-anchor]")) setActionOpenId(null);
+      if (actionOpenId && !target.closest("[data-action-anchor]")) {
+        setActionOpenId(null);
       }
     }
     function onEsc(e: KeyboardEvent) {
@@ -190,51 +223,15 @@ export default function PurchasesPage() {
     };
   }, [colsOpen, actionOpenId]);
 
-  async function cancelPurchase(id: string) {
-    if (!can.cancel) return alert("Not allowed");
-    if (!confirm("Cancel this FINAL purchase? This will reverse stock + supplier due.")) return;
-
-    const res = await fetch(`/api/erp/purchases/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "CANCEL" }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      alert(data?.error || "Failed");
-      return;
-    }
-    load();
-  }
-
-  async function deleteDraft(id: string) {
-    if (!can.delete) return alert("Not allowed");
-    if (!confirm("Delete this DRAFT purchase?")) return;
-
-    const res = await fetch(`/api/erp/purchases/${id}`, { method: "DELETE" });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      alert(data?.error || "Failed");
-      return;
-    }
-    load();
-  }
+  const visibleCols = Object.entries(cols).filter(([, v]) => v).length;
 
   return (
     <div className="p-6 relative w-full">
       <style jsx global>{`
         @media print {
           body * { visibility: hidden !important; }
-          #purchases-print, #purchases-print * { visibility: visible !important; }
-          #purchases-print {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
+          #sales-print, #sales-print * { visibility: visible !important; }
+          #sales-print { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
           .no-print { display: none !important; }
           table { border-collapse: collapse !important; }
           th, td { border: 1px solid #ddd !important; }
@@ -244,21 +241,21 @@ export default function PurchasesPage() {
       <div className="max-w-5xl mx-auto space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-2xl font-semibold text-slate-900">Purchases</div>
-            <div className="text-sm text-slate-500">Manage your purchase bills</div>
+            <div className="text-2xl font-semibold text-slate-900">Sales</div>
+            <div className="text-sm text-slate-500">Manage your sales invoices and orders</div>
           </div>
+          
 
-          <a className={primaryBtn} href="/erp/purchases/add">
-            + Add Purchase
+          <a className={primaryBtn} href="/erp/sales/new">
+            + Add Sale
           </a>
         </div>
 
-        {/* Filters */}
         <div className="no-print bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <div className="text-xs mb-1 text-slate-500">Search</div>
-              <input className={inputBase} placeholder="Search by ref / supplier..." value={q} onChange={(e) => setQ(e.target.value)} />
+              <input className={inputBase} placeholder="Search by ref / customer..." value={q} onChange={(e) => setQ(e.target.value)} />
             </div>
 
             <div>
@@ -292,7 +289,6 @@ export default function PurchasesPage() {
           </div>
         </div>
 
-        {/* Controls */}
         <div className="no-print flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap text-sm text-slate-600">
             <a className={pillBtn} href={exportCsvUrl} target="_blank" rel="noreferrer">Export CSV</a>
@@ -309,12 +305,16 @@ export default function PurchasesPage() {
                 <div className="absolute left-0 z-50 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg p-3">
                   {(
                     [
-                      ["purchaseDate", "Date"],
+                      ["saleDate", "Date"],
                       ["referenceNo", "Reference No"],
-                      ["supplier", "Supplier"],
+                      ["customer", "Customer"],
                       ["location", "Location"],
                       ["status", "Status"],
                       ["grandTotal", "Grand Total"],
+                      ["paidAmount", "Paid Amount"],
+                      ["dueAmount", "Due Amount"],
+                      ["paymentStatus", "Payment Status"],
+                      ["paymentMethod", "Payment Method"],
                       ["addedBy", "Added By"],
                       ["createdAt", "Created At"],
                     ] as Array<[ColKey, string]>
@@ -331,26 +331,23 @@ export default function PurchasesPage() {
                   ))}
 
                   <div className="pt-3 flex gap-2">
-                    <button
-                      className={pillBtn}
-                      onClick={() =>
-                        setCols({
-                          purchaseDate: true,
-                          referenceNo: true,
-                          supplier: true,
-                          location: true,
-                          status: true,
-                          grandTotal: true,
-                          addedBy: true,
-                          createdAt: true,
-                        })
-                      }
-                    >
+                    <button className={pillBtn} onClick={() => setCols({
+                      saleDate: true,
+                      referenceNo: true,
+                      customer: true,
+                      location: true,
+                      status: true,
+                      grandTotal: true,
+                      paidAmount: true,
+                      dueAmount: true,
+                      paymentStatus: true,
+                      paymentMethod: true,
+                      addedBy: true,
+                      createdAt: true,
+                    })}>
                       Reset
                     </button>
-                    <button className={pillBtn} onClick={() => setColsOpen(false)}>
-                      Close
-                    </button>
+                    <button className={pillBtn} onClick={() => setColsOpen(false)}>Close</button>
                   </div>
                 </div>
               )}
@@ -360,10 +357,9 @@ export default function PurchasesPage() {
           <div className="text-sm text-slate-500">Total: {total}</div>
         </div>
 
-        {/* PRINT AREA */}
-        <div id="purchases-print" className="mt-2">
+        <div id="sales-print" className="mt-2">
           <div className="hidden print:block mb-3">
-            <div className="text-lg font-semibold">Purchases</div>
+            <div className="text-lg font-semibold">Sales</div>
             <div className="text-sm">Total records: {total}</div>
             <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
           </div>
@@ -373,13 +369,16 @@ export default function PurchasesPage() {
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
-
-                  {cols.purchaseDate && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Date</th>}
+                  {cols.saleDate && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Date</th>}
                   {cols.referenceNo && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Reference No</th>}
-                  {cols.supplier && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Supplier</th>}
+                  {cols.customer && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Customer</th>}
                   {cols.location && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Location</th>}
                   {cols.status && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</th>}
                   {cols.grandTotal && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Grand Total</th>}
+                  {cols.paidAmount && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Paid</th>}
+                  {cols.dueAmount && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Due</th>}
+                  {cols.paymentStatus && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Payment Status</th>}
+                  {cols.paymentMethod && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Payment Method</th>}
                   {cols.addedBy && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Added By</th>}
                   {cols.createdAt && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>}
                 </tr>
@@ -388,9 +387,7 @@ export default function PurchasesPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td className="px-4 py-6 text-sm text-slate-500" colSpan={1 + visibleCols}>
-                      Loading...
-                    </td>
+                    <td className="px-4 py-6 text-sm text-slate-500" colSpan={visibleCols + 1}>Loading...</td>
                   </tr>
                 ) : rows.length ? (
                   rows.map((r) => (
@@ -410,18 +407,30 @@ export default function PurchasesPage() {
                                 className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
                                 onClick={() => {
                                   setActionOpenId(null);
-                                  window.location.href = `/erp/purchase/list/${r._id}`;
+                                  window.location.href = `/erp/sales/list/${r._id}`;
                                 }}
                               >
                                 View
                               </button>
+
+                              {r.status === "DRAFT" ? (
+                                <button
+                                  className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
+                                  onClick={() => {
+                                    setActionOpenId(null);
+                                    window.location.href = `/erp/sales/new?id=${r._id}`;
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                              ) : null}
 
                               {can.cancel && r.status === "FINAL" ? (
                                 <button
                                   className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-rose-700"
                                   onClick={() => {
                                     setActionOpenId(null);
-                                    cancelPurchase(r._id);
+                                    cancelSale(r._id);
                                   }}
                                 >
                                   Cancel (Reverse)
@@ -444,11 +453,10 @@ export default function PurchasesPage() {
                         </div>
                       </td>
 
-                      {cols.purchaseDate && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtPK(r.purchaseDate)}</td>}
+                      {cols.saleDate && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtPK(r.saleDate)}</td>}
                       {cols.referenceNo && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{r.referenceNo}</td>}
-                      {cols.supplier && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{r.supplierNameSnapshot || "-"}</td>}
+                      {cols.customer && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{r.customerNameSnapshot || "-"}</td>}
                       {cols.location && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{r.locationName || "-"}</td>}
-
                       {cols.status && (
                         <td className="px-4 py-3">
                           <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge(r.status)}`}>
@@ -456,36 +464,40 @@ export default function PurchasesPage() {
                           </span>
                         </td>
                       )}
-
                       {cols.grandTotal && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(r.grandTotal)}</td>}
+                      {cols.paidAmount && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(r.paidAmount)}</td>}
+                      {cols.dueAmount && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(r.dueAmount)}</td>}
+                      {cols.paymentStatus && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{r.paymentStatus || "UNPAID"}</td>}
+                      {cols.paymentMethod && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{r.paymentMethod || "-"}</td>}
                       {cols.addedBy && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{r.addedByName || "-"}</td>}
                       {cols.createdAt && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtPK(r.createdAt)}</td>}
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td className="px-4 py-6 text-sm text-slate-500" colSpan={1 + visibleCols}>
-                      No data available
-                    </td>
+                    <td className="px-4 py-6 text-sm text-slate-500" colSpan={visibleCols + 1}>No data available</td>
                   </tr>
                 )}
               </tbody>
 
               <tfoot>
                 <tr className="border-t border-slate-200 bg-slate-50">
-                  <td className="px-4 py-3 font-semibold text-slate-700" colSpan={Math.max(1, 6)}>
+                  <td className="px-4 py-3 font-semibold text-slate-700" colSpan={Math.max(1, visibleCols - 2)}>
                     Total Grand Total:
                   </td>
-                  <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap" colSpan={Math.max(1, visibleCols - 5)}>
-                    Rs. {money(totals.grandTotal)}
-                  </td>
+                  {cols.grandTotal ? (
+                    <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap" colSpan={Math.max(1, 1)}>
+                      Rs. {money(totals.grandTotal)}
+                    </td>
+                  ) : null}
+                  {cols.addedBy && <td className="px-4 py-3" />}
+                  {cols.createdAt && <td className="px-4 py-3" />}
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
 
-        {/* Pagination */}
         <div className="mt-4 flex items-center justify-end gap-2 text-sm no-print">
           <button
             className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed"

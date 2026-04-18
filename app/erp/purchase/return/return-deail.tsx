@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { FormError } from "@/app/components/FormError";
 
 /* -------------------------------------------------------------------------- */
 /*                               helper utils                                 */
@@ -494,7 +495,7 @@ export default function PurchaseReturnsOnePage() {
         }
       `}</style>
 
-      <div className="w-full max-w-6xl space-y-4">
+      <div className="max-w-5xl mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -529,9 +530,7 @@ export default function PurchaseReturnsOnePage() {
         {/* ADD MODE */}
         {mode === "ADD" ? (
           <div className="space-y-6">
-            {err ? (
-              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{err}</div>
-            ) : null}
+            <FormError message={err} />
 
             {/* Header fields */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
@@ -779,7 +778,7 @@ export default function PurchaseReturnsOnePage() {
                   </button>
                 </div>
               </div>
-
+              <FormError message={err} />
               <div className="mt-2 text-xs text-slate-500">
                 <b>Draft:</b> no posting. <b>Final:</b> stock decreases + supplier return due increases.
               </div>

@@ -222,8 +222,8 @@ export default function SuppliersPage() {
     "hover:bg-slate-50 active:scale-[0.99] transition";
 
   return (
-    <div className="p-6 relative w-full">
-      <div className="w-full max-w-5xl">
+    <div className="p-6 relative">
+      <div className="max-w-5xl mx-auto">
         <style jsx global>{`
           @media print {
             body * {

@@ -242,8 +242,8 @@ export default function CustomersPage() {
     "hover:bg-slate-50 active:scale-[0.99] transition";
 
   return (
-    <div className=" p-6 relative  w-full">
-      <div className=" w-full max-w-5xl">
+    <div className=" p-6 relative ">
+      <div className="  max-w-5xl mx-auto">
         {/* ✅ SINGLE GLOBAL PRINT CSS (no duplicate) */}
         <style jsx global>{`
           @media print {
@@ -645,11 +645,25 @@ export default function CustomersPage() {
                         <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">Rs. {money(r.totals?.advanceBalance)}</td>
                       )}
                       {cols.saleDue && (
-                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">Rs. {money(r.totals?.totalSaleDue)}</td>
+                        <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
+                          {money(r.totals?.totalSaleDue) > 0 ? (
+                            <a className="text-indigo-600 hover:text-indigo-800" href={`/erp/sales/list?customerId=${r._id}`}>
+                              Rs. {money(r.totals?.totalSaleDue)}
+                            </a>
+                          ) : (
+                            <>Rs. {money(r.totals?.totalSaleDue)}</>
+                          )}
+                        </td>
                       )}
                       {cols.returnDue && (
                         <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">
-                          Rs. {money(r.totals?.totalSaleReturnDue)}
+                          {money(r.totals?.totalSaleReturnDue) > 0 ? (
+                            <a className="text-indigo-600 hover:text-indigo-800" href={`/erp/sales/returns?customerId=${r._id}`}>
+                              Rs. {money(r.totals?.totalSaleReturnDue)}
+                            </a>
+                          ) : (
+                            <>Rs. {money(r.totals?.totalSaleReturnDue)}</>
+                          )}
                         </td>
                       )}
                       {cols.status && <td className="px-4 py-3 text-sm text-slate-700 whitespace-nowrap">{r.status}</td>}

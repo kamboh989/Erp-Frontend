@@ -7,7 +7,7 @@ export const MODULES = {
   // CRM
   CRM_LEADS: { label: "Leads", group: "CRM" },
   CRM_FOLLOWUPS: { label: "Follow up", group: "CRM" },
-  CRM_DEALS: { label: "Deals", group: "CRM" },
+  
 
   // ======================
   // ERP (NEW STRUCTURE)
@@ -40,6 +40,27 @@ export const MODULES = {
     ],
   },
 
+  ERP_SALES: {
+    label: "Sales",
+    group: "ERP",
+    implies: [
+      "ERP_SALES_LIST",
+      "ERP_SALES_ADD",
+      "ERP_SALES_QUOTATION_LIST",
+      "ERP_SALES_QUOTATION_ADD",
+      "ERP_SALES_RETURN_LIST",
+      "ERP_SALES_RETURN_ADD",
+    ],
+  },
+
+  ERP_STOCK_TRANSFER: {
+    label: "Stock Transfers",
+    group: "ERP",
+    implies: ["ERP_STOCK_TRANSFER_LIST", "ERP_STOCK_TRANSFER_ADD"],
+  },
+  ERP_STOCK_TRANSFER_LIST: { label: "Stock Transfer List", group: "ERP" },
+  ERP_STOCK_TRANSFER_ADD: { label: "Add Stock Transfer", group: "ERP" },
+
   // ERP → Contacts
   ERP_SUPPLIERS: { label: "Suppliers", group: "ERP" },
   ERP_CUSTOMERS: { label: "Customers", group: "ERP" },
@@ -69,6 +90,14 @@ export const MODULES = {
   // (staff ko list allow, add off)
   ERP_PURCHASE_RETURN_ADD: { label: "Add Purchase Return", group: "ERP" },
 
+  // ERP → Sales
+  ERP_SALES_LIST: { label: "List Sales", group: "ERP" },
+  ERP_SALES_ADD: { label: "Add Sale", group: "ERP" },
+  ERP_SALES_QUOTATION_LIST: { label: "List Quotations", group: "ERP" },
+  ERP_SALES_QUOTATION_ADD: { label: "Add Quotation", group: "ERP" },
+  ERP_SALES_RETURN_LIST: { label: "Sale Returns", group: "ERP" },
+  ERP_SALES_RETURN_ADD: { label: "Add Sale Return", group: "ERP" },
+
   // Common
   REPORTS: { label: "Reports", group: "Common" },
   SETTINGS: { label: "Settings", group: "Common" },
@@ -87,6 +116,8 @@ export const ERP_SECTIONS: ReadonlyArray<{
   { key: "ERP_CONTACTS", title: "Contacts" },
   { key: "ERP_PRODUCTS", title: "Products" },
   { key: "ERP_PURCHASE", title: "Purchase" },
+  { key: "ERP_SALES", title: "Sales" },
+  { key: "ERP_STOCK_TRANSFER", title: "Stock Transfers" },
 ] as const;
 
 // ======================
