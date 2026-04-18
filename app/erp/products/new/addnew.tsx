@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 /* -------------------------------------------------------------------------- */
 /*                                   UI KIT                                   */
@@ -180,6 +181,9 @@ function toNum(v: string) {
 }
 
 function AddProductForm() {
+  const searchParams = useSearchParams();
+  const [isEditing, setIsEditing] = useState(false);
+  const [productId, setProductId] = useState<string | null>(null);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loadingMeta, setLoadingMeta] = useState(true);
 
@@ -212,14 +216,13 @@ function AddProductForm() {
     setFormError("");
   }
 
-  // ✅ metas endpoint (tumne bola metas hi rehne do)
+  // load meta
   useEffect(() => {
     (async () => {
       try {
         setLoadingMeta(true);
         const res = await fetch("/api/metas", { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
-
         setMeta({
           categories: Array.isArray(data?.categories) ? data.categories : [],
           units: Array.isArray(data?.units) ? data.units : [],
@@ -231,6 +234,36 @@ function AddProductForm() {
       }
     })();
   }, []);
+
+  // load product for edit
+  useEffect(() => {
+    const id = searchParams?.get("id");
+    if (!id) return;
+    setIsEditing(true);
+    setProductId(id);
+    (async () => {
+      try {
+        const res = await fetch(`/api/erp/listProduct/${id}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.row) return;
+        const r = data.row;
+        setV({
+          name: r.name || "",
+          sku: r.sku || "",
+          categoryId: r.categoryId ? String(r.categoryId._id || r.categoryId) : "",
+          unitId: r.unitId ? String(r.unitId._id || r.unitId) : "",
+          manageStock: Boolean(r.manageStock),
+          openingStock: Number(r.openingStock || 0),
+          alertQty: Number(r.alertQty || 0),
+          purchasePrice: Number(r.purchasePrice || 0),
+          sellingPrice: Number(r.sellingPrice || 0),
+        });
+      } catch {
+        setFormError("Failed to load product.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // ✅ manageStock off => stock fields 0
   useEffect(() => {
@@ -280,8 +313,8 @@ function AddProductForm() {
     };
 
     // ✅ ERP create endpoint (single source of truth)
-    const res = await fetch("/api/erp/listProduct", {
-      method: "POST",
+    const res = await fetch(isEditing && productId ? `/api/erp/listProduct/${productId}` : "/api/erp/listProduct", {
+      method: isEditing ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -303,7 +336,7 @@ function AddProductForm() {
       return;
     }
 
-    // ✅ back to products list
+    // redirect back
     window.location.href = "/erp/products/list-of-product";
   }
 
@@ -311,7 +344,7 @@ function AddProductForm() {
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      <Card title="Add Product">
+      <Card title={isEditing ? "Edit Product" : "Add Product"}>
         {formError ? (
           <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
             {formError}
@@ -437,7 +470,7 @@ function AddProductForm() {
             Cancel
           </Button>
           <Button type="submit" disabled={saving || loadingMeta}>
-            {saving ? "Saving..." : "Save Product"}
+            {saving ? "Saving..." : isEditing ? "Update Product" : "Save Product"}
           </Button>
         </div>
       </Card>

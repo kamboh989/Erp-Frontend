@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { FormError } from "@/app/components/FormError";
 
 type SupplierRow = any;
@@ -40,6 +41,9 @@ export default function AddPurchasePage() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const searchParams = useSearchParams();
+  const [isEditing, setIsEditing] = useState(false);
+  const [purchaseId, setPurchaseId] = useState<string | null>(null);
 
   const supplierBoxRef = useRef<HTMLDivElement | null>(null);
   const productBoxRef = useRef<HTMLDivElement | null>(null);
@@ -59,6 +63,34 @@ export default function AddPurchasePage() {
     "hover:bg-slate-50 active:scale-[0.99] transition disabled:opacity-60";
 
   // ✅ Professional: auto-create default location if none exists
+  async function loadPurchase(id: string) {
+    const res = await fetch(`/api/erp/purchases/${id}`, { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.row) return;
+    const row = data.row;
+    setPurchaseDate(row.purchaseDate || new Date().toISOString());
+    setStatus(row.status || "DRAFT");
+    setReferenceNo(row.referenceNo || "");
+    setLocationId(row.locationId ? (typeof row.locationId === "string" ? row.locationId : row.locationId._id) : "");
+    setShippingCharges(money(row.shippingCharges));
+    setNotes(row.notes || "");
+    setItems(row.items?.map((it: any) => ({
+      productId: it.productId,
+      name: it.nameSnapshot || "",
+      sku: it.skuSnapshot || "",
+      qty: money(it.qty),
+      unitCost: money(it.unitCost),
+    })) || []);
+    if (row.supplierId && typeof row.supplierId === "object") {
+      setSupplier(row.supplierId);
+      setSupplierQuery(row.supplierId.businessName || row.supplierId.name || "");
+    } else if (row.supplierId) {
+      const sr = await fetch(`/api/erp/suppliers/${row.supplierId}`, { cache: "no-store" });
+      const sd = await sr.json().catch(() => ({}));
+      if (sr.ok && sd.contact) { setSupplier(sd.contact); setSupplierQuery(sd.contact.businessName || sd.contact.name || ""); }
+    }
+  }
+
   async function loadLocations() {
     const res = await fetch("/api/erp/locations", { cache: "no-store" });
     const data = await res.json().catch(() => ({}));
@@ -86,6 +118,16 @@ export default function AddPurchasePage() {
     loadLocations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const id = searchParams?.get("id");
+    if (id) {
+      setIsEditing(true);
+      setPurchaseId(id);
+      loadPurchase(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // close dropdowns
   useEffect(() => {
@@ -225,8 +267,8 @@ export default function AddPurchasePage() {
         })),
       };
 
-      const res = await fetch("/api/erp/purchases", {
-        method: "POST",
+      const res = await fetch(isEditing && purchaseId ? `/api/erp/purchases/${purchaseId}` : "/api/erp/purchases", {
+        method: isEditing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -247,7 +289,11 @@ export default function AddPurchasePage() {
         return;
       }
 
-      alert("Purchase saved successfully!");
+      alert(isEditing ? "Purchase updated successfully!" : "Purchase saved successfully!");
+      if (isEditing) {
+        window.location.href = "/erp/purchase/list";
+        return;
+      }
       // ✅ Reset form after success (keep location)
 setSupplier(null);
 setSupplierQuery("");
@@ -280,8 +326,8 @@ window.scrollTo({ top: 0, behavior: "smooth" });
     <div className="p-6 "> 
       <div className="space-y-6 max-w-5xl mx-auto">
         <div>
-          <div className="text-2xl font-semibold text-slate-900">Add Purchase</div>
-          <div className="text-sm text-slate-500">Minimal purchase bill (Draft/Final)</div>
+          <div className="text-2xl font-semibold text-slate-900">{isEditing ? "Edit Purchase" : "Add Purchase"}</div>
+          <div className="text-sm text-slate-500">{isEditing ? "Update purchase bill details." : "Minimal purchase bill (Draft/Final)"}</div>
         </div>
 
         <FormError message={err} />
@@ -546,7 +592,7 @@ window.scrollTo({ top: 0, behavior: "smooth" });
                 Cancel
               </button>
               <button className={primaryBtn} disabled={saving} onClick={save}>
-                {saving ? "Saving..." : status === "FINAL" ? "Save & Finalize" : "Save Draft"}
+                {saving ? "Saving..." : isEditing ? "Update Purchase" : status === "FINAL" ? "Save & Finalize" : "Save Draft"}
               </button>
             </div>
           </div>

@@ -1,12 +1,10 @@
-import React from 'react'
+import { Suspense } from "react";
 import New from "./addnew";
 
-const page = () => {
+export default function Page() {
   return (
-    <div>
-        <New/>
-    </div>
-  )
+    <Suspense>
+      <New />
+    </Suspense>
+  );
 }
-
-export default page

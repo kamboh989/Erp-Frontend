@@ -398,7 +398,7 @@ export default function PurchasesPage() {
                       <td className="px-4 py-3 no-print">
                         <div className="relative inline-block" data-action-anchor>
                           <button
-                            className="text-xs border border-indigo-200 text-indigo-700 bg-indigo-50 rounded-lg px-3 py-1.5 hover:bg-indigo-100"
+                            className="text-xs border border-slate-300 text-slate-600 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50"
                             onClick={() => setActionOpenId(actionOpenId === r._id ? null : r._id)}
                           >
                             Actions ▾
@@ -415,6 +415,18 @@ export default function PurchasesPage() {
                               >
                                 View
                               </button>
+
+                              {r.status === "DRAFT" ? (
+                                <button
+                                  className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
+                                  onClick={() => {
+                                    setActionOpenId(null);
+                                    window.location.href = `/erp/purchase/new?id=${r._id}`;
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                              ) : null}
 
                               {can.cancel && r.status === "FINAL" ? (
                                 <button
