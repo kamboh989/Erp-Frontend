@@ -222,7 +222,7 @@ export default function PurchasesPage() {
   }
 
   return (
-    <div className="p-6 relative w-full">
+    <div className="p-6 relative">
       <style jsx global>{`
         @media print {
           body * { visibility: hidden !important; }
