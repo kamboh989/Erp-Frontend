@@ -7,7 +7,7 @@ export default function SettingPicker({
   onChange,
 }: {
   value: AppSetting[];
-  onChange: (next: AppSetting[]) => void;
+  onChange: (next: AppSetting[]) => void; 
 }) {
   const set = new Set(value);
 
