@@ -50,18 +50,18 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
       const items = (sale as any).items || [];
       for (const it of items) {
-        const prod = await Product.findOne({ _id: it.productId, companyId: session.companyId, isActive: true })
+        const prod = await Product.findOne({ _id: it.productId, companyId: session.companyId })
           .select("_id manageStock")
           .lean();
         if (!prod?.manageStock) continue;
         await Product.updateOne(
-          { _id: it.productId, companyId: session.companyId, isActive: true },
+          { _id: it.productId, companyId: session.companyId },
           { $inc: { currentStock: Number(it.qty || 0) } }
         );
       }
 
       await Customer.updateOne(
-        { _id: (sale as any).customerId, companyId: session.companyId, contactType: "CUSTOMER" },
+        { _id: (sale as any).customerId, companyId: session.companyId, contactType: { $in: ["CUSTOMER", "BOTH"] } },
         { $inc: { "totals.totalSaleDue": -Number((sale as any).dueAmount || 0) } }
       );
 
@@ -167,6 +167,46 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     (sale as any).paymentNote = paymentNote?.trim() || "";
     (sale as any).notes = notes?.trim() || "";
     (sale as any).updatedBy = session.userId;
+
+    // If changing from DRAFT to FINAL, update stock
+    const oldStatus = sale.status;
+    const newStatus = status === "FINAL" ? "FINAL" : "DRAFT";
+    
+    if (oldStatus === "DRAFT" && newStatus === "FINAL") {
+      // Check stock availability
+      for (const it of validatedItems) {
+        const prod = await Product.findOne({ _id: it.productId, companyId: session.companyId })
+          .select("_id manageStock currentStock")
+          .lean();
+        if (!prod?.manageStock) continue;
+        const currentStock = Number(prod.currentStock || 0);
+        if (currentStock < Number(it.qty || 0)) {
+          return NextResponse.json({ error: "INSUFFICIENT_STOCK" }, { status: 400 });
+        }
+      }
+
+      // Update stock
+      for (const it of validatedItems) {
+        const prod = await Product.findOne({ _id: it.productId, companyId: session.companyId })
+          .select("_id manageStock")
+          .lean();
+        if (!prod?.manageStock) continue;
+        await Product.updateOne(
+          { _id: it.productId, companyId: session.companyId },
+          { $inc: { currentStock: -Number(it.qty || 0) } }
+        );
+      }
+
+      // Update customer due
+      if (dueAmount > 0) {
+        await Customer.updateOne(
+          { _id: customerId, companyId: session.companyId, contactType: { $in: ["CUSTOMER", "BOTH"] } },
+          { $inc: { "totals.totalSaleDue": dueAmount } }
+        );
+      }
+
+      (sale as any).finalizedAt = new Date();
+    }
 
     await sale.save();
 

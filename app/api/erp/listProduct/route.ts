@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ rows: out, total });
+    return NextResponse.json({ rows: out, total, can: { admin: Boolean(session.isOwner || session.role === "ADMIN") } });
   } catch (err) {
     return authErrorResponse(err);
   }

@@ -193,10 +193,34 @@ export default function StockTransferList() {
         @media print {
           body * { visibility: hidden !important; }
           #stock-transfer-print, #stock-transfer-print * { visibility: visible !important; }
-          #stock-transfer-print { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
-          .no-print { display: none !important; }
-          table { border-collapse: collapse !important; }
-          th, td { border: 1px solid #ddd !important; }
+          #stock-transfer-print { 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+          }
+          .no-print { display: none !important; visibility: hidden !important; }
+          table { 
+            border-collapse: collapse !important; 
+            width: 100% !important;
+            min-width: auto !important;
+            table-layout: auto !important;
+          }
+          th, td { 
+            border: 1px solid #ddd !important; 
+            font-size: 10px !important;
+            padding: 4px !important;
+            white-space: nowrap !important;
+          }
+          .overflow-x-auto {
+            overflow: visible !important;
+          }
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
+          }
         }
       `}</style>
 
@@ -283,7 +307,7 @@ export default function StockTransferList() {
                   {cols.shippingCharges && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Shipping</th>}
                   {cols.subtotal && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Subtotal</th>}
                   {cols.grandTotal && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Total</th>}
-                  {cols.addedBy && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Added By</th>}
+                  {cols.addedBy && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Added By</th>}
                   {cols.createdAt && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>}
                 </tr>
               </thead>
@@ -355,7 +379,7 @@ export default function StockTransferList() {
                       {cols.shippingCharges && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(r.shippingCharges)}</td>}
                       {cols.subtotal && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(r.subtotal)}</td>}
                       {cols.grandTotal && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(r.grandTotal)}</td>}
-                      {cols.addedBy && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{r.addedByName || "-"}</td>}
+                      {cols.addedBy && <td className="px-4 py-3 text-slate-700 whitespace-nowrap no-print">{r.addedByName || "-"}</td>}
                       {cols.createdAt && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtPK(r.createdAt)}</td>}
                     </tr>
                   ))

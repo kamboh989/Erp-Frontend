@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireCompanyAuth, authErrorResponse, requireCompanyAdmin } from "@/lib/auth";
+import { nextRefNo } from "@/lib/refNo";
 
 import PurchaseReturn from "@/models/PurchaseReturn";
 import Supplier from "@/models/Supplier";
@@ -93,7 +94,8 @@ export async function POST(req: NextRequest) {
     const locationId = String(body?.locationId || "").trim();
     const returnDate = body?.returnDate ? new Date(body.returnDate) : new Date();
     const status = String(body?.status || "DRAFT").toUpperCase();
-    const referenceNo = String(body?.referenceNo || "").trim();
+    const autoRef = await nextRefNo(session.companyId, "PURCHASE_RETURN", "PRET");
+    const referenceNo = String(body?.referenceNo || "").trim() || autoRef;
 
     const shippingCharges = Math.max(0, nnum(body?.shippingCharges, 0));
     const notes = String(body?.notes || "").trim();
@@ -184,7 +186,7 @@ export async function POST(req: NextRequest) {
         if (!prod?.manageStock) continue;
 
         await Product.updateOne(
-          { _id: it.productId, companyId: session.companyId, isActive: true },
+          { _id: it.productId, companyId: session.companyId },
           { $inc: { currentStock: -Number(it.qty || 0) } }
         );
       }

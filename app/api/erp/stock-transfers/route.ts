@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireCompanyAuth, authErrorResponse } from "@/lib/auth";
+import { nextRefNo } from "@/lib/refNo";
 import StockTransfer from "@/models/StockTransfer";
 import Product from "@/models/Product";
 
@@ -72,7 +73,7 @@ export async function GET(req: NextRequest) {
       totals,
       can: {
         admin: isAdminUser,
-        update: true,
+        update: isAdminUser,
         delete: isAdminUser,
       },
     });
@@ -91,7 +92,8 @@ export async function POST(req: NextRequest) {
     const toLocationId = String(body?.toLocationId || "").trim();
     const transferDate = body?.transferDate ? new Date(body.transferDate) : new Date();
     const status = String(body?.status || "PENDING").toUpperCase();
-    const referenceNo = String(body?.referenceNo || "").trim();
+    const autoRef = await nextRefNo(session.companyId, "STOCK_TRANSFER", "STR");
+    const referenceNo = String(body?.referenceNo || "").trim() || autoRef;
     const shippingCharges = Math.max(0, nnum(body?.shippingCharges, 0));
     const notes = String(body?.notes || "").trim();
     const itemsIn = Array.isArray(body?.items) ? body.items : [];

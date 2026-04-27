@@ -33,6 +33,7 @@ export default function CustomerViewPage() {
     balanceDue: 0,
     advance: 0,
   });
+  const [printedAt, setPrintedAt] = useState("");
 
   function buildLedger(nextContact: any, nextPayments: any[]) {
     const rows: any[] = [];
@@ -132,6 +133,7 @@ export default function CustomerViewPage() {
   }
 
   useEffect(() => {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
     loadContact();
   }, [id]);
 
@@ -154,21 +156,81 @@ export default function CustomerViewPage() {
   const tableCell =
     "px-4 py-3 text-sm text-slate-700 whitespace-nowrap";
 
+  const pillBtn =
+    "text-sm bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 shadow-sm " +
+    "hover:bg-slate-50 active:scale-[0.99] transition";
+
+  function onPrint() {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
+    window.print();
+  }
+
+  function onExportPdf() {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
+    window.print();
+  }
+
   return (
     <div className="p-6 space-y-6">
-      <CustomerViewHeader current={contact} />
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #customer-detail-print, #customer-detail-print * { visibility: visible !important; }
+          #customer-detail-print { 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+          }
+          .no-print { display: none !important; visibility: hidden !important; }
+          table { 
+            border-collapse: collapse !important; 
+            width: 100% !important;
+            min-width: auto !important;
+            table-layout: auto !important;
+          }
+          th, td { 
+            border: 1px solid #ddd !important; 
+            font-size: 10px !important;
+            padding: 4px !important;
+            white-space: nowrap !important;
+          }
+          .overflow-x-auto, .overflow-auto {
+            overflow: visible !important;
+          }
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
+          }
+        }
+      `}</style>
+
+      <div id="customer-detail-print">
+      <div className="hidden print:block mb-3">
+        <div className="text-lg font-semibold">Customer Detail</div>
+        <div className="text-sm">{contact.businessName || contact.name}</div>
+        <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
+      </div>
+
+      <div className="no-print">
+        <CustomerViewHeader current={contact} />
+      </div>
 
       {/* Summary Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex justify-between">
-        <div className="text-sm text-slate-700 space-y-1">
-          <div><b>Customer:</b> {contact.businessName || contact.name}</div>
-          <div><b>Mobile:</b> {contact.mobile}</div>
-          <div><b>Address:</b> {contact.moreInfo?.billingAddress?.line1 || "-"}</div>
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
+        <div className="flex justify-between items-start gap-4">
+          <div className="text-sm text-slate-700 space-y-1">
+            <div><b>Customer:</b> {contact.businessName || contact.name}</div>
+            <div><b>Mobile:</b> {contact.mobile}</div>
+            <div><b>Address:</b> {contact.moreInfo?.billingAddress?.line1 || "-"}</div>
+          </div>
+          <div className="no-print flex gap-2">
+            <button className={pillBtn} onClick={onExportPdf}>Export PDF</button>
+            <button className={pillBtn} onClick={onPrint}>Print</button>
+          </div>
         </div>
-{/* 
-        <button className="px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-medium shadow-sm hover:bg-indigo-700 transition">
-          Add Discount
-        </button> */}
       </div>
 
       {/* Tabs */}
@@ -402,6 +464,7 @@ export default function CustomerViewPage() {
           canEdit={canEdit}
         />
       )}
+      </div>
     </div>
   );
 }

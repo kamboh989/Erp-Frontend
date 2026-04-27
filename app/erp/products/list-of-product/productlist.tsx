@@ -70,8 +70,7 @@ export default function ProductsPage() {
   const [stockTotals, setStockTotals] = useState<{ purchase: number; sale: number }>({ purchase: 0, sale: 0 });
 
   const [loading, setLoading] = useState(false);
-
-  // column visibility (ALL tab)
+  const [can, setCan] = useState<{ admin: boolean }>({ admin: false });
   type AllColKey = "name" | "sku" | "category" | "unit" | "purchasePrice" | "sellingPrice" | "currentStock";
   const [colsOpen, setColsOpen] = useState(false);
   const colsMenuRef = useRef<HTMLDivElement | null>(null);
@@ -171,6 +170,7 @@ export default function ProductsPage() {
       const data = await res.json().catch(() => ({}));
       setRows(Array.isArray(data.rows) ? data.rows : []);
       setTotal(Number(data.total || 0));
+      setCan({ admin: Boolean(data.can?.admin) });
     } finally {
       setLoading(false);
     }
@@ -301,15 +301,31 @@ export default function ProductsPage() {
 
           .no-print {
             display: none !important;
+            visibility: hidden !important;
           }
 
           table {
             border-collapse: collapse !important;
+            width: 100% !important;
+            min-width: auto !important;
+            table-layout: auto !important;
           }
 
           th,
           td {
             border: 1px solid #ddd !important;
+            font-size: 10px !important;
+            padding: 4px !important;
+            white-space: nowrap !important;
+          }
+
+          .overflow-x-auto {
+            overflow: visible !important;
+          }
+
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
           }
         }
       `}</style>
@@ -388,6 +404,10 @@ export default function ProductsPage() {
 
         <div className="mt-4 flex items-center justify-between gap-4 no-print">
           <div className="flex items-center gap-2 text-sm flex-wrap text-slate-600">
+            <button className={"ml-0 " + pillBtn} onClick={() => tab === "ALL" ? loadAllProducts() : loadStockReport()} title="Refresh data">
+              🔄 Refresh
+            </button>
+            
             {tab === "ALL" ? (
               <>
                 <a className={"ml-0 " + pillBtn} href={exportAllCsvUrl} target="_blank" rel="noreferrer">
@@ -481,6 +501,7 @@ export default function ProductsPage() {
               rows={rows}
               cols={cols}
               loading={loading}
+              canAdmin={can.admin}
               onDeactivate={deactivateProduct}
               onOpeningStock={openOpeningStockModal}
               actionOpenId={actionOpenId}
@@ -535,12 +556,13 @@ function AllProductsTable(props: {
   rows: ProductRow[];
   cols: Record<"name" | "sku" | "category" | "unit" | "purchasePrice" | "sellingPrice" | "currentStock", boolean>;
   loading: boolean;
+  canAdmin: boolean;
   onDeactivate: (id: string) => void;
   onOpeningStock: (r: ProductRow) => void;
   actionOpenId: string | null;
   setActionOpenId: (v: string | null) => void;
 }) {
-  const { rows, cols, loading, onDeactivate, onOpeningStock, actionOpenId, setActionOpenId } = props;
+  const { rows, cols, loading, canAdmin, onDeactivate, onOpeningStock, actionOpenId, setActionOpenId } = props;
   const visibleCols = Object.entries(cols).filter(([, v]) => v).length;
 
   return (
@@ -607,6 +629,7 @@ function AllProductsTable(props: {
                             Add / Edit Opening Stock
                           </button>
 
+                          {canAdmin && (
                           <button
                             className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-rose-700"
                             onClick={() => {
@@ -616,6 +639,7 @@ function AllProductsTable(props: {
                           >
                             Deactivate
                           </button>
+                          )}
                         </div>
                       )}
                     </div>

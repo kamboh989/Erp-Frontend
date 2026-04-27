@@ -54,14 +54,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
     // reverse stock decrease => increase back
     for (const it of items) {
-      const prod = await Product.findOne({ _id: it.productId, companyId: session.companyId, isActive: true })
+      const prod = await Product.findOne({ _id: it.productId, companyId: session.companyId })
         .select("_id manageStock")
         .lean();
 
       if (!prod?.manageStock) continue;
 
       await Product.updateOne(
-        { _id: it.productId, companyId: session.companyId, isActive: true },
+        { _id: it.productId, companyId: session.companyId },
         { $inc: { currentStock: Number(it.qty || 0) } }
       );
     }

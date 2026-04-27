@@ -97,7 +97,6 @@ export default function AddPurchasePage() {
     let rows: LocationRow[] = Array.isArray(data.rows) ? data.rows : [];
 
     if (!rows.length) {
-      // auto create default
       const cr = await fetch("/api/erp/locations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -114,8 +113,16 @@ export default function AddPurchasePage() {
     if (!locationId && def?._id) setLocationId(def._id);
   }
 
+  async function loadNextRef() {
+    const res = await fetch("/api/erp/ref-preview?key=PURCHASE&prefix=PUR", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (data.ref) setReferenceNo(data.ref);
+  }
+
   useEffect(() => {
     loadLocations();
+    const id = searchParams?.get("id");
+    if (!id) loadNextRef();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -246,7 +253,6 @@ export default function AddPurchasePage() {
 
     if (!supplier?._id) return setErr("Supplier required");
     if (!locationId) return setErr("Location required");
-    if (!referenceNo.trim()) return setErr("Reference/Invoice no required");
     if (!items.length) return setErr("At least 1 product required");
     if (items.some((x) => money(x.qty) <= 0 || money(x.unitCost) < 0)) return setErr("Invalid qty/cost in items");
 
@@ -274,6 +280,8 @@ export default function AddPurchasePage() {
       });
 
       const data = await res.json().catch(() => ({}));
+      console.log('Purchase API Response:', { status: res.status, ok: res.ok, data });
+      
       if (!res.ok) {
         const map: Record<string, string> = {
           SUPPLIER_REQUIRED: "Supplier required",
@@ -290,33 +298,9 @@ export default function AddPurchasePage() {
       }
 
       alert(isEditing ? "Purchase updated successfully!" : "Purchase saved successfully!");
-      if (isEditing) {
-        window.location.href = "/erp/purchase/list";
-        return;
-      }
-      // ✅ Reset form after success (keep location)
-setSupplier(null);
-setSupplierQuery("");
-setSupplierRows([]);
-setSupplierOpen(false);
-
-setReferenceNo("");
-setStatus("DRAFT");
-setPurchaseDate(new Date().toISOString());
-
-setItems([]);
-setProductQuery("");
-setProductRows([]);
-setProductOpen(false);
-
-setShippingCharges(0);
-setNotes("");
-
-setErr("");
-setSaving(false); // (optional safety)
-
-// ✅ bring user to top (fresh feel)
-window.scrollTo({ top: 0, behavior: "smooth" });
+      
+      // Redirect to purchase list to show updated data
+      window.location.href = "/erp/purchase/list";
     } finally {
       setSaving(false);
     }
@@ -406,8 +390,8 @@ window.scrollTo({ top: 0, behavior: "smooth" });
             </div>
 
             <div>
-              <div className="text-xs mb-1 text-slate-500">Reference / Invoice No *</div>
-              <input className={inputBase} value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="e.g. INV-1023" />
+              <div className="text-xs mb-1 text-slate-500">Reference / Invoice No</div>
+              <input className={inputBase} value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="Auto-generated" />
             </div>
 
             <div>

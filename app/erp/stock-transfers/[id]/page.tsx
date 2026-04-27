@@ -80,6 +80,11 @@ export default function StockTransferDetailPage() {
     window.print();
   }
 
+  function onExportPdf() {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
+    window.print();
+  }
+
   if (loading) return <div className="p-6 text-slate-500">Loading...</div>;
   if (!row) return <div className="p-6 text-slate-500">Stock transfer not found.</div>;
 
@@ -89,10 +94,34 @@ export default function StockTransferDetailPage() {
         @media print {
           body * { visibility: hidden !important; }
           #stock-transfer-detail-print, #stock-transfer-detail-print * { visibility: visible !important; }
-          #stock-transfer-detail-print { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
-          .no-print { display: none !important; }
-          table { border-collapse: collapse !important; }
-          th, td { border: 1px solid #ddd !important; }
+          #stock-transfer-detail-print { 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+          }
+          .no-print { display: none !important; visibility: hidden !important; }
+          table { 
+            border-collapse: collapse !important; 
+            width: 100% !important;
+            min-width: auto !important;
+            table-layout: auto !important;
+          }
+          th, td { 
+            border: 1px solid #ddd !important; 
+            font-size: 10px !important;
+            padding: 4px !important;
+            white-space: nowrap !important;
+          }
+          .overflow-x-auto {
+            overflow: visible !important;
+          }
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
+          }
         }
       `}</style>
 
@@ -103,6 +132,9 @@ export default function StockTransferDetailPage() {
             <div className="text-sm text-slate-500">Reference: {row.referenceNo}</div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button className="text-sm bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 shadow-sm hover:bg-slate-50" onClick={onExportPdf}>
+              Export PDF
+            </button>
             <button className="text-sm bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 shadow-sm hover:bg-slate-50" onClick={onPrint}>
               Print
             </button>

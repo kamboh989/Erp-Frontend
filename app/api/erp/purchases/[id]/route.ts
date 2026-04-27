@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireCompanyAuth, authErrorResponse, requireCompanyAdmin } from "@/lib/auth";
@@ -55,6 +56,8 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     if (!purchase) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
     if ((purchase as any).status !== "DRAFT") return NextResponse.json({ error: "CANNOT_EDIT_NON_DRAFT" }, { status: 400 });
 
+    const oldStatus = (purchase as any).status; // Store old status
+
     const supplier = await Supplier.findOne({ _id: supplierId, companyId: session.companyId, contactType: "SUPPLIER" }).select("_id name businessName").lean();
     if (!supplier) return NextResponse.json({ error: "INVALID_SUPPLIER" }, { status: 400 });
 
@@ -77,7 +80,8 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     (purchase as any).supplierNameSnapshot = (supplier as any).businessName || (supplier as any).name || "Supplier";
     (purchase as any).locationId = locationId;
     (purchase as any).purchaseDate = new Date(purchaseDate || Date.now());
-    (purchase as any).status = status === "FINAL" ? "FINAL" : "DRAFT";
+    const newStatus = status === "FINAL" ? "FINAL" : "DRAFT";
+    (purchase as any).status = newStatus;
     (purchase as any).referenceNo = referenceNo.trim();
     (purchase as any).items = validatedItems;
     (purchase as any).subtotal = subtotal;
@@ -85,8 +89,30 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     (purchase as any).grandTotal = grandTotal;
     (purchase as any).notes = notes?.trim() || "";
     (purchase as any).updatedBy = session.userId;
+    if (newStatus === "FINAL") {
+      (purchase as any).finalizedAt = new Date();
+    }
 
     await purchase.save();
+
+    // ── If DRAFT → FINAL: post stock + supplier due ──
+    if (oldStatus === "DRAFT" && newStatus === "FINAL") {
+      for (const it of validatedItems) {
+        const prod = await Product.findOne({ _id: it.productId, companyId: session.companyId })
+          .select("_id manageStock")
+          .lean();
+        if (!prod?.manageStock) continue;
+        await Product.updateOne(
+          { _id: new mongoose.Types.ObjectId(String(it.productId)), companyId: new mongoose.Types.ObjectId(session.companyId) },
+          { $inc: { currentStock: Number(it.qty || 0) } }
+        );
+      }
+      await Supplier.updateOne(
+        { _id: supplierId, companyId: session.companyId, contactType: "SUPPLIER" },
+        { $inc: { "totals.totalPurchaseDue": grandTotal } }
+      );
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     if (err?.code === 11000) return NextResponse.json({ error: "REFERENCE_ALREADY_EXISTS" }, { status: 409 });
@@ -122,13 +148,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       const prod = await Product.findOne({
         _id: it.productId,
         companyId: session.companyId,
-        isActive: true,
       }).select("_id manageStock").lean();
 
       if (!prod?.manageStock) continue;
 
       await Product.updateOne(
-        { _id: it.productId, companyId: session.companyId, isActive: true },
+        { _id: new mongoose.Types.ObjectId(String(it.productId)), companyId: new mongoose.Types.ObjectId(session.companyId) },
         { $inc: { currentStock: -Number(it.qty || 0) } }
       );
     }

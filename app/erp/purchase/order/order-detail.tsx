@@ -198,11 +198,10 @@ export default function PurchaseOrdersPage() {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function resetAdd() {
+  async function resetAdd() {
     setSupplier(null);
     setSupplierQuery("");
     setSupplierRows([]);
-    setReferenceNo("");
     setAddStatus("DRAFT");
     setOrderDate(new Date().toISOString());
     const def = locations.find((x) => x.isDefault) || locations[0];
@@ -212,6 +211,10 @@ export default function PurchaseOrdersPage() {
     setProductRows([]);
     setNotes("");
     setErr("");
+    // generate new ref for next order
+    const res = await fetch("/api/erp/ref-preview?key=PURCHASE_ORDER&prefix=PO", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    setReferenceNo(data.ref || "");
   }
 
   async function saveOrder() {
@@ -305,6 +308,9 @@ export default function PurchaseOrdersPage() {
     (async () => {
       await loadLocations();
       await loadList();
+      const res = await fetch("/api/erp/ref-preview?key=PURCHASE_ORDER&prefix=PO", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (data.ref) setReferenceNo(data.ref);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

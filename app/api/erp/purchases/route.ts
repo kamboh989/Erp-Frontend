@@ -1,6 +1,8 @@
+import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireCompanyAuth, authErrorResponse, requireCompanyAdmin } from "@/lib/auth";
+import { nextRefNo } from "@/lib/refNo";
 
 import Purchase from "@/models/Purchase";
 import Supplier from "@/models/Supplier";
@@ -100,16 +102,21 @@ export async function GET(req: NextRequest) {
 /** ✅ CREATE Purchase (same as your minimal logic) */
 export async function POST(req: NextRequest) {
   try {
+    console.log('\n=== PURCHASE POST API CALLED ===');
     const session = await requireCompanyAuth(req);
     await connectDB();
 
     const body = await req.json().catch(() => ({}));
+    console.log('Request Body:', JSON.stringify(body, null, 2));
 
     const supplierId = String(body?.supplierId || "").trim();
     const locationId = String(body?.locationId || "").trim();
     const purchaseDate = body?.purchaseDate ? new Date(body.purchaseDate) : new Date();
     const status = String(body?.status || "DRAFT").toUpperCase();
-    const referenceNo = String(body?.referenceNo || "").trim();
+    console.log('Status received:', status);
+    console.log('Status is FINAL?', status === "FINAL");
+    const autoRef = await nextRefNo(session.companyId, "PURCHASE", "PUR");
+    const referenceNo = String(body?.referenceNo || "").trim() || autoRef;
 
     const shippingCharges = Math.max(0, nnum(body?.shippingCharges, 0));
     const notes = String(body?.notes || "").trim();
@@ -193,14 +200,19 @@ export async function POST(req: NextRequest) {
 
     // Posting only if FINAL
     if (status === "FINAL") {
+      console.log('=== FINALIZING PURCHASE - UPDATING STOCK ===');
       for (const it of items) {
         const prod = pMap.get(String(it.productId));
-        if (!prod?.manageStock) continue;
-
+        if (!prod?.manageStock) {
+          console.log(`Skipping ${prod?.name} - manageStock is OFF`);
+          continue;
+        }
+        console.log(`Updating stock for ${prod.name}: adding qty ${it.qty}`);
         await Product.updateOne(
-          { _id: it.productId, companyId: session.companyId, isActive: true },
-          { $inc: { currentStock: it.qty } }
+          { _id: new mongoose.Types.ObjectId(String(it.productId)), companyId: new mongoose.Types.ObjectId(session.companyId) },
+          { $inc: { currentStock: Number(it.qty || 0) } }
         );
+        console.log(`Stock updated for ${prod.name}`);
       }
 
       await Supplier.updateOne(

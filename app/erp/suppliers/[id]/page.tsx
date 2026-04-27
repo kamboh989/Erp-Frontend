@@ -71,6 +71,7 @@ export default function SupplierViewPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersTotal, setOrdersTotal] = useState(0);
+  const [printedAt, setPrintedAt] = useState("");
 
   function buildLedger(nextContact: any, nextPayments: any[]) {
     const rows: any[] = [];
@@ -180,6 +181,7 @@ export default function SupplierViewPage() {
   }
 
   useEffect(() => {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
     loadContact();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
@@ -207,35 +209,95 @@ export default function SupplierViewPage() {
     "text-sm bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 shadow-sm " +
     "hover:bg-slate-50 active:scale-[0.99] transition";
 
+  function onPrint() {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
+    window.print();
+  }
+
+  function onExportPdf() {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
+    window.print();
+  }
+
   return (
     <div className="p-6 space-y-6 ">
-      <CustomerViewHeader current={contact} />
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #supplier-detail-print, #supplier-detail-print * { visibility: visible !important; }
+          #supplier-detail-print { 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+          }
+          .no-print { display: none !important; visibility: hidden !important; }
+          table { 
+            border-collapse: collapse !important; 
+            width: 100% !important;
+            min-width: auto !important;
+            table-layout: auto !important;
+          }
+          th, td { 
+            border: 1px solid #ddd !important; 
+            font-size: 10px !important;
+            padding: 4px !important;
+            white-space: nowrap !important;
+          }
+          .overflow-x-auto, .overflow-auto {
+            overflow: visible !important;
+          }
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
+          }
+        }
+      `}</style>
+
+      <div id="supplier-detail-print">
+      <div className="hidden print:block mb-3">
+        <div className="text-lg font-semibold">Supplier Detail</div>
+        <div className="text-sm">{contact.businessName || contact.name}</div>
+        <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
+      </div>
+
+      <div className="no-print">
+        <CustomerViewHeader current={contact} />
+      </div>
 
       {/* Top details */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 flex flex-col md:flex-row justify-between gap-4">
-        <div className="text-sm text-slate-700 space-y-1">
-          <div className="font-semibold">
-            {contact.businessName || contact.name}{" "}
-            <span className="text-slate-500 font-normal">, Supplier</span>
-          </div>
-          <div>
-            <b>Address:</b> {buildAddress(contact)}
-          </div>
-          <div>
-            <b>Business Name:</b> {contact.businessName || "-"}
-          </div>
-          <div>
-            <b>Mobile:</b> {contact.mobile || "-"}
-          </div>
-        </div>
-
-        <div className="text-sm text-slate-700 space-y-1">
-          <div>
-            <b>Tax number:</b> {contact.moreInfo?.taxNumber || "-"}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
+        <div className="flex flex-col md:flex-row justify-between gap-4">
+          <div className="text-sm text-slate-700 space-y-1">
+            <div className="font-semibold">
+              {contact.businessName || contact.name}{" "}
+              <span className="text-slate-500 font-normal">, Supplier</span>
+            </div>
+            <div>
+              <b>Address:</b> {buildAddress(contact)}
+            </div>
+            <div>
+              <b>Business Name:</b> {contact.businessName || "-"}
+            </div>
+            <div>
+              <b>Mobile:</b> {contact.mobile || "-"}
+            </div>
           </div>
 
-          <div>
-            <b>Pay term:</b> {contact.moreInfo?.payTerm || "-"}
+          <div className="text-sm text-slate-700 space-y-1">
+            <div>
+              <b>Tax number:</b> {contact.moreInfo?.taxNumber || "-"}
+            </div>
+            <div>
+              <b>Pay term:</b> {contact.moreInfo?.payTerm || "-"}
+            </div>
+          </div>
+
+          <div className="no-print flex gap-2">
+            <button className={pillBtn} onClick={onExportPdf}>Export PDF</button>
+            <button className={pillBtn} onClick={onPrint}>Print</button>
           </div>
         </div>
       </div>
@@ -613,6 +675,7 @@ export default function SupplierViewPage() {
 
       {/* CONTACT PERSONS */}
       {tab === "CONTACT_PERSONS" && <ContactPersonsPanel contact={contact} onUpdated={loadContact} canEdit={canEdit} />}
+      </div>
     </div>
   );
 }

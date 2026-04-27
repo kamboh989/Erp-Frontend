@@ -244,39 +244,37 @@ export default function CustomersPage() {
   return (
     <div className=" p-6 relative ">
       <div className="  max-w-5xl mx-auto">
-        {/* ✅ SINGLE GLOBAL PRINT CSS (no duplicate) */}
         <style jsx global>{`
           @media print {
-            body * {
-              visibility: hidden !important;
+            body * { visibility: hidden !important; }
+            #customers-print-area, #customers-print-area * { visibility: visible !important; }
+            #customers-print-area { 
+              position: absolute !important; 
+              left: 0 !important; 
+              top: 0 !important; 
+              width: 100% !important; 
+              padding: 0 !important; 
+              margin: 0 !important; 
             }
-
-            #customers-print-area,
-            #customers-print-area * {
-              visibility: visible !important;
-            }
-
-            #customers-print-area {
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
+            .no-print { display: none !important; visibility: hidden !important; }
+            table { 
+              border-collapse: collapse !important; 
               width: 100% !important;
-              padding: 0 !important;
-              margin: 0 !important;
+              min-width: auto !important;
+              table-layout: auto !important;
             }
-
-            /* hide action + controls inside print */
-            .no-print {
-              display: none !important;
+            th, td { 
+              border: 1px solid #ddd !important; 
+              font-size: 10px !important;
+              padding: 4px !important;
+              white-space: nowrap !important;
             }
-
-            table {
-              border-collapse: collapse !important;
+            .overflow-x-auto {
+              overflow: visible !important;
             }
-
-            th,
-            td {
-              border: 1px solid #ddd !important;
+            @page {
+              size: A4 landscape;
+              margin: 10mm;
             }
           }
         `}</style>
@@ -506,7 +504,7 @@ export default function CustomersPage() {
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-            <table className="min-w-full w-full text-sm">
+            <table className="min-w-[1200px] w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">

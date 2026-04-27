@@ -13,7 +13,7 @@ const ProductSchema = new Schema(
     unitId: { type: Schema.Types.ObjectId, ref: "Unit", required: true },
 
     manageStock: { type: Boolean, default: true },
-    currentStock: { type: Number, default: 0, min: 0 },
+    currentStock: { type: Number, default: 0 },
     
     openingStock: { type: Number, default: 0, min: 0 },
     alertQty: { type: Number, default: 0, min: 0 },

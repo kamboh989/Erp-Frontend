@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireCompanyAuth, authErrorResponse, requireCompanyAdmin } from "@/lib/auth";
+import { nextRefNo } from "@/lib/refNo";
 
 import Quotation from "@/models/Quotation";
 import Customer from "@/models/Customer";
@@ -69,9 +70,9 @@ export async function GET(req: NextRequest) {
       totals,
       can: {
         admin: Boolean(session.isOwner || session.role === "ADMIN"),
-        create: Boolean(session.isOwner || session.role === "ADMIN"),
-        update: Boolean(session.isOwner || session.role === "ADMIN"),
-  delete: Boolean(session.isOwner || session.role === "ADMIN"),
+        create: true,
+        update: true,
+        delete: Boolean(session.isOwner || session.role === "ADMIN"),
       },
     });
   } catch (err) {
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await requireCompanyAuth(req);
-    requireCompanyAdmin(session);
+    // Staff can create quotations
     await connectDB();
 
     const body = await req.json().catch(() => ({}));
@@ -100,8 +101,9 @@ export async function POST(req: NextRequest) {
 
     if (!customerId) return NextResponse.json({ error: "CUSTOMER_REQUIRED" }, { status: 400 });
     if (!locationId) return NextResponse.json({ error: "LOCATION_REQUIRED" }, { status: 400 });
-    if (!referenceNo?.trim()) return NextResponse.json({ error: "REFERENCE_REQUIRED" }, { status: 400 });
     if (!Array.isArray(items) || !items.length) return NextResponse.json({ error: "ITEMS_REQUIRED" }, { status: 400 });
+
+    const autoRef = await nextRefNo(session.companyId, "QUOTATION", "QUO");
 
     const customer = await Customer.findOne({
       _id: customerId,
@@ -117,7 +119,7 @@ export async function POST(req: NextRequest) {
     // Check reference uniqueness
     const existing = await Quotation.findOne({
       companyId: session.companyId,
-      referenceNo: referenceNo.trim(),
+      referenceNo: autoRef,
       status: { $in: ["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED"] },
     }).lean();
     if (existing) return NextResponse.json({ error: "REFERENCE_ALREADY_EXISTS" }, { status: 400 });
@@ -154,7 +156,7 @@ export async function POST(req: NextRequest) {
       quotationDate: new Date(quotationDate || Date.now()),
       expiryDate: expiryDate ? new Date(expiryDate) : null,
       status: status === "SENT" ? "SENT" : "DRAFT",
-      referenceNo: referenceNo.trim(),
+      referenceNo: autoRef,
       shippingCharges: Number(shippingCharges || 0),
       subtotal,
       grandTotal,

@@ -1,6 +1,8 @@
+import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireCompanyAuth, authErrorResponse } from "@/lib/auth";
+import { nextRefNo } from "@/lib/refNo";
 import Sale from "@/models/Sale";
 import Customer from "@/models/Customer";
 import Product from "@/models/Product";
@@ -82,15 +84,21 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    console.log('\n=== SALE POST API CALLED ===');
     const session = await requireCompanyAuth(req);
     await connectDB();
 
     const body = await req.json().catch(() => ({}));
+    console.log('Request Body:', JSON.stringify(body, null, 2));
     const customerId = String(body?.customerId || "").trim();
     const locationId = String(body?.locationId || "").trim();
     const saleDate = body?.saleDate ? new Date(body.saleDate) : new Date();
     const status = String(body?.status || "DRAFT").toUpperCase();
-    const referenceNo = String(body?.referenceNo || "").trim();
+    console.log('Status received:', status);
+    console.log('Status is FINAL?', status === "FINAL");
+    // Always increment counter for unique tracking, use user's ref if provided
+    const autoRef = await nextRefNo(session.companyId, "SALE", "SAL");
+    const referenceNo = String(body?.referenceNo || "").trim() || autoRef;
     const shippingCharges = Math.max(0, nnum(body?.shippingCharges, 0));
     const paymentAmount = Math.max(0, nnum(body?.paymentAmount, 0));
     const paymentMethod = String(body?.paymentMethod || "").trim();
@@ -198,24 +206,36 @@ export async function POST(req: NextRequest) {
       finalizedAt: status === "FINAL" ? new Date() : null,
     });
 
+    console.log('Sale created with ID:', sale._id);
+    console.log('Sale status:', (sale as any).status);
+    console.log('Now checking if status === FINAL for stock update...');
+
     if (status === "FINAL") {
+      console.log('=== FINALIZING SALE - UPDATING STOCK ===');
       for (const it of items) {
         const prod = pMap.get(String(it.productId));
-        if (!prod?.manageStock) continue;
+        if (!prod?.manageStock) {
+          console.log(`Skipping ${prod?.name} - manageStock is OFF`);
+          continue;
+        }
+        console.log(`Updating stock for ${prod.name}: currentStock ${prod.currentStock} - qty ${it.qty}`);
         await Product.updateOne(
-          { _id: it.productId, companyId: session.companyId, isActive: true },
+          { _id: new mongoose.Types.ObjectId(String(it.productId)), companyId: new mongoose.Types.ObjectId(session.companyId) },
           { $inc: { currentStock: -Number(it.qty || 0) } }
         );
+        console.log(`Stock updated for ${prod.name}`);
       }
 
+      console.log('Stock update completed!');
       if (dueAmount > 0) {
         await Customer.updateOne(
-          { _id: customerId, companyId: session.companyId, contactType: "CUSTOMER" },
+          { _id: customerId, companyId: session.companyId, contactType: { $in: ["CUSTOMER", "BOTH"] } },
           { $inc: { "totals.totalSaleDue": dueAmount } }
         );
       }
     }
 
+    console.log('Returning success response');
     return NextResponse.json({ row: sale }, { status: 201 });
   } catch (err: any) {
     if (String(err?.message || "") === "INVALID_PRODUCT") {

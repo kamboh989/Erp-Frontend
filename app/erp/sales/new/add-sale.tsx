@@ -84,6 +84,12 @@ export default function AddSale() {
     if (!locationId && def?._id) setLocationId(def._id);
   }
 
+  async function loadNextRef() {
+    const res = await fetch(`/api/erp/ref-preview?key=SALE&prefix=SAL&_=${Date.now()}`);
+    const data = await res.json().catch(() => ({}));
+    if (data.ref) setReferenceNo(data.ref);
+  }
+
   async function loadSale(id: string) {
     const res = await fetch(`/api/erp/sales/${id}`, { cache: "no-store" });
     const data = await res.json().catch(() => ({}));
@@ -124,6 +130,8 @@ export default function AddSale() {
 
   useEffect(() => {
     loadLocations();
+    const id = searchParams?.get("id");
+    if (!id) loadNextRef();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -246,9 +254,13 @@ export default function AddSale() {
 
   async function save() {
     setErr("");
+    console.log('=== SAVE FUNCTION CALLED ===');
+    console.log('Status:', status);
+    console.log('Customer:', customer);
+    console.log('Items:', items);
+    
     if (!customer?._id) return setErr("Customer required");
     if (!locationId) return setErr("Location required");
-    if (!referenceNo.trim()) return setErr("Reference/Invoice no required");
     if (!items.length) return setErr("At least 1 product required");
     if (items.some((x) => money(x.qty) <= 0 || money(x.unitPrice) < 0)) return setErr("Invalid qty/price in items");
 
@@ -273,6 +285,11 @@ export default function AddSale() {
         })),
       };
 
+      console.log('=== SENDING SALE TO API ===');
+      console.log('Payload:', JSON.stringify(payload, null, 2));
+      console.log('URL:', isEditing && saleId ? `/api/erp/sales/${saleId}` : "/api/erp/sales");
+      console.log('Method:', isEditing ? "PUT" : "POST");
+
       const res = await fetch(isEditing && saleId ? `/api/erp/sales/${saleId}` : "/api/erp/sales", {
         method: isEditing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -280,6 +297,8 @@ export default function AddSale() {
       });
 
       const data = await res.json().catch(() => ({}));
+      console.log('Sale API Response:', { status: res.status, ok: res.ok, data });
+      
       if (!res.ok) {
         const map: Record<string, string> = {
           CUSTOMER_REQUIRED: "Customer required",
@@ -298,29 +317,9 @@ export default function AddSale() {
       }
 
       alert(isEditing ? "Sale updated successfully!" : "Sale saved successfully!");
-      if (isEditing) {
-        window.location.href = "/erp/sales/list";
-        return;
-      }
-      setCustomer(null);
-      setCustomerQuery("");
-      setCustomerRows([]);
-      setCustomerOpen(false);
-      setReferenceNo("");
-      setStatus("DRAFT");
-      setSaleDate(new Date().toISOString());
-      setItems([]);
-      setProductQuery("");
-      setProductRows([]);
-      setProductOpen(false);
-      setShippingCharges(0);
-      setPaymentAmount(0);
-      setPaymentMethod("");
-      setPaymentReference("");
-      setPaymentNote("");
-      setNotes("");
-      setErr("");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      
+      // Redirect to sales list to show updated data
+      window.location.href = "/erp/sales/list";
     } finally {
       setSaving(false);
     }
@@ -404,8 +403,8 @@ export default function AddSale() {
             </div>
 
             <div>
-              <div className="text-xs mb-1 text-slate-500">Reference / Invoice No *</div>
-              <input className={inputBase} value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="e.g. INV-2026-001" />
+              <div className="text-xs mb-1 text-slate-500">Reference / Invoice No</div>
+              <input className={inputBase} value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="Auto-generated" />
             </div>
 
             <div>

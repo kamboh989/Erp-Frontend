@@ -205,13 +205,12 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       const prod = await Product.findOne({
         _id: it.productId,
         companyId: session.companyId,
-        isActive: true,
       })
         .select("_id manageStock")
         .lean();
       if (!prod?.manageStock) continue;
       await Product.updateOne(
-        { _id: it.productId, companyId: session.companyId, isActive: true },
+        { _id: it.productId, companyId: session.companyId },
         { $inc: { currentStock: -Number(it.qty || 0) } }
       );
     }

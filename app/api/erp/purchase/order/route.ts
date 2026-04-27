@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireCompanyAuth, authErrorResponse } from "@/lib/auth";
 import { isCompanyAdmin } from "@/lib/perm";
+import { nextRefNo } from "@/lib/refNo";
 
 import PurchaseOrder from "@/models/PurchaseOrder";
 import Supplier from "@/models/Supplier";
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
 
     const supplierId = String(body?.supplierId || "").trim();
     const locationId = String(body?.locationId || "").trim();
-    const referenceNo = String(body?.referenceNo || "").trim();
+    const referenceNo = await nextRefNo(session.companyId, "PURCHASE_ORDER", "PO");
     const status = String(body?.status || "DRAFT").toUpperCase();
     const orderDate = body?.orderDate ? new Date(body.orderDate) : new Date();
 

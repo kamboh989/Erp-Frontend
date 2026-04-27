@@ -298,28 +298,26 @@ export default function PurchaseReturnsOnePage() {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function resetAddForm() {
+  async function resetAddForm() {
     setSupplier(null);
     setSupplierQuery("");
     setSupplierRows([]);
     setSupplierOpen(false);
-
-    setReferenceNo("");
     setAddStatus("DRAFT");
     setReturnDate(new Date().toISOString());
-
-    // choose default location again if any
     const def = locations.find((x) => x.isDefault) || locations[0];
     setLocationId(def?._id || "");
-
     setItems([]);
     setProductQuery("");
     setProductRows([]);
     setProductOpen(false);
-
     setShippingCharges(0);
     setNotes("");
     setErr("");
+    // refresh ref for next return
+    const res = await fetch("/api/erp/ref-preview?key=PURCHASE_RETURN&prefix=PRET", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (data.ref) setReferenceNo(data.ref);
   }
 
   async function saveReturn() {
@@ -421,6 +419,9 @@ export default function PurchaseReturnsOnePage() {
     (async () => {
       await loadLocations();
       await loadList();
+      const res = await fetch("/api/erp/ref-preview?key=PURCHASE_RETURN&prefix=PRET", { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (data.ref) setReferenceNo(data.ref);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

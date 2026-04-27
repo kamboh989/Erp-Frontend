@@ -223,7 +223,7 @@ export default function SidebarList() {
               <>
                 <div
                   onClick={() => toggleMenu(item.label)}
-                  className={`px-3 py-2 cursor-pointer flex justify-between items-center ${base3D} ${hover3D} ${
+                  className={`px-1 py-2 cursor-pointer flex justify-between items-center ${base3D} ${hover3D} ${
                     parentActive ? active3D : ""
                   }`}
                 >
@@ -254,7 +254,7 @@ export default function SidebarList() {
                           <>
                             <div
                               onClick={() => toggleMenu(child.label)}
-                              className={`px-2 py-2 cursor-pointer flex justify-between items-center ${base3D} ${hover3D} ${
+                              className={`px-1 py-2 cursor-pointer flex justify-between items-center ${base3D} ${hover3D} ${
                                 childParentActive ? active3D : ""
                               }`}
                             >
@@ -283,7 +283,7 @@ export default function SidebarList() {
                                     {leaf.href ? (
                                       <Link
                                         href={leaf.href}
-                                        className={`flex items-center gap-2 px-2 py-1 text-gray-700 ${base3D} ${hover3D} ${
+                                        className={`flex items-center gap-2 px-1 py-1 text-gray-700 ${base3D} ${hover3D} ${
                                           isLeafActive ? active3D : ""
                                         }`}
                                       >
@@ -291,7 +291,7 @@ export default function SidebarList() {
                                         {leaf.label}
                                       </Link>
                                     ) : (
-                                      <div className={`flex items-center gap-2 px-2 py-1 text-gray-700 ${base3D} ${hover3D}`}>
+                                      <div className={`flex items-center gap-2 px-1 py-1 text-gray-700 ${base3D} ${hover3D}`}>
                                         <LeafIcon size={16} className="text-gray-500" />
                                         {leaf.label}
                                       </div>
@@ -304,7 +304,7 @@ export default function SidebarList() {
                         ) : (
                           <Link
                             href={child.href!}
-                            className={`flex items-center gap-2 px-2 py-1 text-gray-700 ${base3D} ${hover3D} ${
+                            className={`flex items-center gap-2 px-1 py-1 text-gray-700 ${base3D} ${hover3D} ${
                               pathname === child.href ? active3D : ""
                             }`}
                           >
@@ -320,7 +320,7 @@ export default function SidebarList() {
             ) : (
               <Link
                 href={item.href!}
-                className={`flex items-center gap-2 px-3 py-2 ${base3D} ${hover3D} ${isActive ? active3D : ""}`}
+                className={`flex items-center gap-2 px-1 py-2 ${base3D} ${hover3D} ${isActive ? active3D : ""}`}
               >
                 <Icon size={18} className="text-gray-600" />
                 {item.label}

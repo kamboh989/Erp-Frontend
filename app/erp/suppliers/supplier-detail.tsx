@@ -226,30 +226,35 @@ export default function SuppliersPage() {
       <div className="max-w-5xl mx-auto">
         <style jsx global>{`
           @media print {
-            body * {
-              visibility: hidden !important;
+            body * { visibility: hidden !important; }
+            #suppliers-print-area, #suppliers-print-area * { visibility: visible !important; }
+            #suppliers-print-area { 
+              position: absolute !important; 
+              left: 0 !important; 
+              top: 0 !important; 
+              width: 100% !important; 
+              padding: 0 !important; 
+              margin: 0 !important; 
             }
-            #suppliers-print-area,
-            #suppliers-print-area * {
-              visibility: visible !important;
-            }
-            #suppliers-print-area {
-              position: absolute !important;
-              left: 0 !important;
-              top: 0 !important;
+            .no-print { display: none !important; visibility: hidden !important; }
+            table { 
+              border-collapse: collapse !important; 
               width: 100% !important;
-              padding: 0 !important;
-              margin: 0 !important;
+              min-width: auto !important;
+              table-layout: auto !important;
             }
-            .no-print {
-              display: none !important;
+            th, td { 
+              border: 1px solid #ddd !important; 
+              font-size: 10px !important;
+              padding: 4px !important;
+              white-space: nowrap !important;
             }
-            table {
-              border-collapse: collapse !important;
+            .overflow-x-auto {
+              overflow: visible !important;
             }
-            th,
-            td {
-              border: 1px solid #ddd !important;
+            @page {
+              size: A4 landscape;
+              margin: 10mm;
             }
           }
         `}</style>
@@ -450,7 +455,7 @@ export default function SuppliersPage() {
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-            <table className="min-w-[1200px] w-full text-sm">
+            <table className="min-w-[1400px] w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">

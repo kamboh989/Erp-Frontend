@@ -96,6 +96,7 @@ export default function StockTransferForm() {
 
   useEffect(() => {
     loadLocations();
+    loadNextRef();
     const id = searchParams.get("id");
     if (id) {
       setIsEditing(true);
@@ -104,6 +105,13 @@ export default function StockTransferForm() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  async function loadNextRef() {
+    if (searchParams.get("id")) return;
+    const res = await fetch("/api/erp/ref-preview?key=STOCK_TRANSFER&prefix=STR", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (data.ref) setReferenceNo(data.ref);
+  }
 
   useEffect(() => {
     if (!productQuery.trim()) { setProductRows([]); return; }

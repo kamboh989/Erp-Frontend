@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireCompanyAuth, authErrorResponse } from "@/lib/auth";
+import { nextRefNo } from "@/lib/refNo";
 import SaleReturn from "@/models/SaleReturn";
 import Customer from "@/models/Customer";
 import Product from "@/models/Product";
@@ -103,7 +104,8 @@ export async function POST(req: NextRequest) {
     const locationId       = String(body?.locationId       || "").trim();
     const returnDate       = body?.returnDate ? new Date(body.returnDate) : new Date();
     const status           = String(body?.status           || "DRAFT").toUpperCase();
-    const referenceNo      = String(body?.referenceNo      || "").trim();
+    const autoRef = await nextRefNo(session.companyId, "SALE_RETURN", "SRET");
+    const referenceNo      = String(body?.referenceNo || "").trim() || autoRef;
     const shippingCharges  = Math.max(0, nnum(body?.shippingCharges, 0));
     const paymentAmount    = Math.max(0, nnum(body?.paymentAmount,   0));
     const paymentMethod    = String(body?.paymentMethod    || "").trim();
@@ -213,7 +215,7 @@ export async function POST(req: NextRequest) {
         const prod = pMap.get(String(it.productId));
         if (!prod?.manageStock) continue;
         await Product.updateOne(
-          { _id: it.productId, companyId: session.companyId, isActive: true },
+          { _id: it.productId, companyId: session.companyId },
           { $inc: { currentStock: Number(it.qty || 0) } }
         );
       }

@@ -115,6 +115,13 @@ export default function AddSaleReturn() {
     if (!locationId && def?._id) setLocationId(def._id);
   }
 
+  async function loadNextRef() {
+    if (isEditing) return;
+    const res = await fetch("/api/erp/ref-preview?key=SALE_RETURN&prefix=SRET", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (data.ref) setReferenceNo(data.ref);
+  }
+
   // ─────────────────────────────────────────────
   // Load existing return for edit
   // ─────────────────────────────────────────────
@@ -169,6 +176,7 @@ export default function AddSaleReturn() {
   // ─────────────────────────────────────────────
   useEffect(() => {
     loadLocations();
+    loadNextRef();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -361,6 +369,7 @@ export default function AddSaleReturn() {
       setPaymentNote("");
       setNotes("");
       setErr("");
+      loadNextRef();
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setSaving(false);
