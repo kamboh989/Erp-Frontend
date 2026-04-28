@@ -25,7 +25,7 @@ export function Dropdown({
     <div className="relative inline-block" ref={ref}>
       {button({ onClick: () => setOpen((s) => !s) })}
       {open && (
-        <div className="absolute z-50 mt-2 w-56 bg-white border rounded-md shadow-lg overflow-hidden">
+        <div className="absolute z-[9999] mt-2 w-56 bg-white border rounded-md shadow-lg overflow-hidden left-0">
           {children}
         </div>
       )}

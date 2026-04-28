@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { CustomerViewHeader } from "@/app/components/customers/CustomerViewHeader";
 import { NotesModal } from "@/app/components/customers/NotesModal";
 import { ContactPersonsPanel } from "@/app/components/customers/ContactPersonsPanel";
+import { getCustomerBalance } from "@/lib/contactTotals";
 
 type Tab =
   | "LEDGER"
@@ -25,6 +26,8 @@ export default function CustomerViewPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
+  const [salesOrders, setSalesOrders] = useState<any[]>([]);
+  const [salesLoading, setSalesLoading] = useState(false);
 
   const [ledgerRows, setLedgerRows] = useState<any[]>([]);
   const [ledgerSummary, setLedgerSummary] = useState({
@@ -48,6 +51,9 @@ export default function CustomerViewPage() {
     const advance =
       Number(nextContact?.totals?.advanceBalance ?? 0) || 0;
 
+    const totalSaleDue = Number(nextContact?.totals?.totalSaleDue ?? 0) || 0;
+    const totalSaleReturnDue = Number(nextContact?.totals?.totalSaleReturnDue ?? 0) || 0;
+
     if (opening > 0) {
       rows.push({
         date: nextContact?.createdAt || new Date().toISOString(),
@@ -57,6 +63,30 @@ export default function CustomerViewPage() {
         credit: 0,
         method: "-",
         note: "Opening balance",
+      });
+    }
+
+    if (totalSaleDue > 0) {
+      rows.push({
+        date: nextContact?.createdAt || new Date().toISOString(),
+        type: "Sales Due",
+        ref: "-",
+        debit: totalSaleDue,
+        credit: 0,
+        method: "-",
+        note: "Total sales due",
+      });
+    }
+
+    if (totalSaleReturnDue > 0) {
+      rows.push({
+        date: nextContact?.createdAt || new Date().toISOString(),
+        type: "Sale Return",
+        ref: "-",
+        debit: 0,
+        credit: totalSaleReturnDue,
+        method: "-",
+        note: "Sale returns",
       });
     }
 
@@ -92,7 +122,7 @@ export default function CustomerViewPage() {
     const totalDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
     const totalCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
 
-    const totalInvoice = 0;
+    const totalInvoice = totalSaleDue;
     const totalPaid = totalCredit;
     const balanceDue = totalDebit - totalCredit;
 
@@ -132,6 +162,17 @@ export default function CustomerViewPage() {
     setActivities(data.rows || []);
   }
 
+  async function loadSalesOrders() {
+    setSalesLoading(true);
+    try {
+      const res = await fetch(`/api/erp/customers/${id}/sales`);
+      const data = await res.json();
+      setSalesOrders(data.rows || []);
+    } finally {
+      setSalesLoading(false);
+    }
+  }
+
   useEffect(() => {
     setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
     loadContact();
@@ -144,6 +185,7 @@ export default function CustomerViewPage() {
     if (tab === "DOCS") loadNotes();
     if (tab === "ACTIVITIES") loadActivities();
     if (tab === "LEDGER") loadPayments();
+    if (tab === "SALES") loadSalesOrders();
   }, [tab, contact]);
 
   if (!contact)
@@ -225,6 +267,12 @@ export default function CustomerViewPage() {
             <div><b>Customer:</b> {contact.businessName || contact.name}</div>
             <div><b>Mobile:</b> {contact.mobile}</div>
             <div><b>Address:</b> {contact.moreInfo?.billingAddress?.line1 || "-"}</div>
+          </div>
+          <div className="text-sm text-slate-700 space-y-1">
+            <div><b>Total Sales Due:</b> Rs. {Number(contact.totals?.totalSaleDue || 0)}</div>
+            <div><b>Sale Returns:</b> Rs. {Number(contact.totals?.totalSaleReturnDue || 0)}</div>
+            <div><b>Advance Balance:</b> Rs. {Number(contact.totals?.advanceBalance || 0)}</div>
+            <div><b>Opening Balance:</b> Rs. {Number(contact.totals?.openingBalanceDue || 0)}</div>
           </div>
           <div className="no-print flex gap-2">
             <button className={pillBtn} onClick={onExportPdf}>Export PDF</button>
@@ -316,9 +364,90 @@ export default function CustomerViewPage() {
       {/* SALES */}
       {tab === "SALES" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
-          <div className="text-sm font-semibold text-slate-800 mb-3">Sales</div>
-          <div className="border border-slate-200 rounded-2xl p-4 text-sm text-slate-500">
-            No data available in table (placeholder until Sales module)
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold text-slate-800">Sales Orders & Invoices</div>
+            <div className="text-xs text-slate-500">
+              {salesLoading ? "Loading..." : `${salesOrders.length} records`}
+            </div>
+          </div>
+          
+          <div className="overflow-auto border border-slate-200 rounded-2xl">
+            <table className="min-w-[1000px] w-full">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className={tableHead}>Date</th>
+                  <th className={tableHead}>Reference No</th>
+                  <th className={tableHead}>Type</th>
+                  <th className={tableHead}>Status</th>
+                  <th className={tableHead}>Amount</th>
+                  <th className={tableHead}>Due Amount</th>
+                  <th className={tableHead}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {salesLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-sm text-slate-500">
+                      Loading sales data...
+                    </td>
+                  </tr>
+                ) : salesOrders.length ? (
+                  salesOrders.map((sale: any) => (
+                    <tr key={sale._id} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className={tableCell}>{new Date(sale.date).toLocaleDateString()}</td>
+                      <td className={tableCell}>{sale.referenceNo}</td>
+                      <td className={tableCell}>{sale.type}</td>
+                      <td className={tableCell}>
+                        <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+                          {sale.status}
+                        </span>
+                      </td>
+                      <td className={tableCell}>Rs. {sale.amount}</td>
+                      <td className={tableCell}>Rs. {sale.dueAmount}</td>
+                      <td className={tableCell}>
+                        <button className="text-xs border border-indigo-200 text-indigo-700 bg-indigo-50 rounded-lg px-3 py-1.5 hover:bg-indigo-100">
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-sm text-slate-500 text-center">
+                      <div className="space-y-2">
+                        <div>No sales records found for this customer</div>
+                        <div className="text-xs text-slate-400">
+                          Sales orders and invoices will appear here when the sales module is integrated
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="mt-4 text-sm text-slate-700 bg-slate-50 rounded-lg p-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <div className="text-xs text-slate-500">Total Sales</div>
+                <div className="font-semibold">Rs. {Number(contact.totals?.totalSaleDue || 0)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">Sale Returns</div>
+                <div className="font-semibold text-orange-600">Rs. {Number(contact.totals?.totalSaleReturnDue || 0)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">Net Due</div>
+                <div className="font-semibold text-red-600">
+                  Rs. {Math.max(0, (Number(contact.totals?.totalSaleDue || 0) - Number(contact.totals?.totalSaleReturnDue || 0) - Number(contact.totals?.advanceBalance || 0)))}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">Advance</div>
+                <div className="font-semibold text-green-600">Rs. {Number(contact.totals?.advanceBalance || 0)}</div>
+              </div>
+            </div>
           </div>
         </div>
       )}

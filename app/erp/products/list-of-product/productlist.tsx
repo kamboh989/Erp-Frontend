@@ -442,7 +442,7 @@ export default function ProductsPage() {
                 </button>
 
                 {colsOpen && (
-                  <div className="absolute left-0 z-50 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg p-3">
+                  <div className="absolute left-0 z-[9999] mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg p-3">
                     {(
                       [
                         ["name", "Product Name"],
@@ -497,16 +497,20 @@ export default function ProductsPage() {
           </div>
 
           {tab === "ALL" ? (
-            <AllProductsTable
-              rows={rows}
-              cols={cols}
-              loading={loading}
-              canAdmin={can.admin}
-              onDeactivate={deactivateProduct}
-              onOpeningStock={openOpeningStockModal}
-              actionOpenId={actionOpenId}
-              setActionOpenId={setActionOpenId}
-            />
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+              <div className="overflow-x-auto" style={{ overflow: 'visible' }}>
+                <AllProductsTable
+                  rows={rows}
+                  cols={cols}
+                  loading={loading}
+                  canAdmin={can.admin}
+                  onDeactivate={deactivateProduct}
+                  onOpeningStock={openOpeningStockModal}
+                  actionOpenId={actionOpenId}
+                  setActionOpenId={setActionOpenId}
+                />
+              </div>
+            </div>
           ) : (
             <StockReportTable rows={stockRows} loading={loading} totals={stockTotals} />
           )}
@@ -566,22 +570,21 @@ function AllProductsTable(props: {
   const visibleCols = Object.entries(cols).filter(([, v]) => v).length;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-      <table className="min-w-full w-full text-sm">
-        <thead className="bg-slate-50">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
-            {cols.name && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Product Name</th>}
-            {cols.sku && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">SKU</th>}
-            {cols.category && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Category</th>}
-            {cols.unit && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Unit</th>}
-            {cols.purchasePrice && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Purchase Price</th>}
-            {cols.sellingPrice && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Selling Price</th>}
-            {cols.currentStock && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Current Stock</th>}
-          </tr>
-        </thead>
+    <table className="min-w-full w-full text-sm">
+      <thead className="bg-slate-50">
+        <tr>
+          <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
+          {cols.name && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Product Name</th>}
+          {cols.sku && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">SKU</th>}
+          {cols.category && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Category</th>}
+          {cols.unit && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Unit</th>}
+          {cols.purchasePrice && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Purchase Price</th>}
+          {cols.sellingPrice && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Selling Price</th>}
+          {cols.currentStock && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Current Stock</th>}
+        </tr>
+      </thead>
 
-        <tbody>
+      <tbody style={{ position: 'relative' }}>
           {loading ? (
             <tr>
               <td className="px-4 py-6 text-sm text-slate-500" colSpan={1 + visibleCols}>
@@ -597,8 +600,8 @@ function AllProductsTable(props: {
               const lowStock = Boolean(r.lowStock) || (r.manageStock && currentStock <= money(r.alertQty ?? 0));
 
               return (
-                <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50 transition">
-                  <td className="px-4 py-3 no-print">
+                <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50 transition" data-row-id={r._id}>
+                  <td className="px-4 py-3 no-print" style={{ position: 'relative' }}>
                     <div className="relative inline-block" data-action-anchor>
                       <button
                         className="text-xs border border-slate-300 text-slate-600 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50"
@@ -608,7 +611,23 @@ function AllProductsTable(props: {
                       </button>
 
                       {actionOpenId === r._id && (
-                        <div className="absolute z-50 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg p-2">
+                        <div 
+                          className="absolute mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg p-2 left-0 top-full"
+                          style={{ 
+                            zIndex: 10000,
+                            minWidth: '200px'
+                          }}
+                        >
+                          <button
+                            className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
+                            onClick={() => {
+                              setActionOpenId(null);
+                              window.location.href = `/erp/products/${r._id}`;
+                            }}
+                          >
+                            👁 View
+                          </button>
+
                           <button
                             className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
                             onClick={() => {
@@ -616,7 +635,7 @@ function AllProductsTable(props: {
                               window.location.href = `/erp/products/new?id=${r._id}`;
                             }}
                           >
-                            Edit
+                            ✏️ Edit
                           </button>
 
                           <button
@@ -688,8 +707,7 @@ function AllProductsTable(props: {
           )}
         </tbody>
       </table>
-    </div>
-  );
+    );
 }
 
 function StockReportTable(props: { rows: StockRow[]; loading: boolean; totals: { purchase: number; sale: number } }) {

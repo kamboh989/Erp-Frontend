@@ -282,7 +282,9 @@ export default function StockTransferList() {
         <div className="no-print flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 flex-wrap text-sm text-slate-600">
             <button className={pillBtn} onClick={onPrint}>Print</button>
-          
+            <button className={pillBtn} onClick={() => window.print()}>Export PDF</button>
+            <a className={pillBtn} href="/api/erp/stock-transfers/export/csv" target="_blank" rel="noreferrer">Export CSV</a>
+            <a className={pillBtn} href="/api/erp/stock-transfers/export/excel" target="_blank" rel="noreferrer">Export Excel</a>
           </div>
           <div className="text-sm text-slate-500">Total: {total}</div>
         </div>
@@ -294,8 +296,9 @@ export default function StockTransferList() {
             <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-visible">
-            <table className="min-w-[1000px] w-full text-sm">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm" style={{ overflow: 'visible' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="min-w-[1000px] w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
@@ -312,7 +315,7 @@ export default function StockTransferList() {
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody style={{ position: 'relative' }}>
                 {loading ? (
                   <tr>
                     <td className="px-4 py-6 text-sm text-slate-500" colSpan={visibleCols + 1}>Loading...</td>
@@ -320,49 +323,54 @@ export default function StockTransferList() {
                 ) : rows.length ? (
                   rows.map((r) => (
                     <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50 transition">
-                      <td className="px-4 py-3 no-print">
-                        <div className="relative inline-block" data-action-anchor>
+                      <td className="px-4 py-3 no-print" style={{ position: 'relative' }}>
+                        <div className="relative">
                           <button
-                            className="text-xs border border-slate-300 text-slate-600 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 transition"
-                            onClick={() => setActionOpenId(actionOpenId === r._id ? null : r._id)}
+                            className="text-xs border border-slate-300 text-slate-600 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 flex items-center gap-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const dropdown = e.currentTarget.nextElementSibling as HTMLElement;
+                              if (dropdown) {
+                                dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                              }
+                            }}
                           >
-                            Actions ▾
+                            Actions ▼
                           </button>
-                          {actionOpenId === r._id && (
-                            <div className="absolute z-50 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg p-2 right-0">
+                          <div
+                            className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[120px]"
+                            style={{ display: 'none', zIndex: 10000 }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                              onClick={() => {
+                                window.location.href = `/erp/stock-transfers/${r._id}`;
+                              }}
+                            >
+                              👁 View
+                            </button>
+                            {can.update && r.status !== "COMPLETED" && (
                               <button
-                                className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-gray-700"
+                                className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
                                 onClick={() => {
-                                  setActionOpenId(null);
-                                  window.location.href = `/erp/stock-transfers/${r._id}`;
+                                  window.location.href = `/erp/stock-transfers/new?id=${r._id}`;
                                 }}
                               >
-                                View
+                                ✏️ Edit
                               </button>
-                              {can.update && r.status !== "COMPLETED" && (
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
-                                  onClick={() => {
-                                    setActionOpenId(null);
-                                    window.location.href = `/erp/stock-transfers/new?id=${r._id}`;
-                                  }}
-                                >
-                                  Edit
-                                </button>
-                              )}
-                              {can.delete && r.status === "PENDING" && (
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-rose-700"
-                                  onClick={() => {
-                                    setActionOpenId(null);
-                                    deletePending(r._id);
-                                  }}
-                                >
-                                  Delete
-                                </button>
-                              )}
-                            </div>
-                          )}
+                            )}
+                            {can.delete && r.status === "PENDING" && (
+                              <button
+                                className="w-full text-left px-3 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2"
+                                onClick={() => {
+                                  deletePending(r._id);
+                                }}
+                              >
+                                🗑 Delete
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </td>
                       {cols.transferDate && <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtPK(r.transferDate)}</td>}
@@ -401,7 +409,8 @@ export default function StockTransferList() {
                   ) : null}
                 </tr>
               </tfoot>
-            </table>
+              </table>
+            </div>
           </div>
         </div>
 

@@ -333,7 +333,7 @@ export default function SaleReturnList() {
                 Column Visibility ▾
               </button>
               {colsOpen && (
-                <div className="absolute left-0 z-50 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg p-3">
+                <div className="absolute left-0 z-[9999] mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg p-3">
                   <div className="max-h-72 overflow-auto pr-1">
                     {COL_LABELS.map(([k, label]) => (
                       <label key={k} className="flex items-center gap-2 text-sm py-1.5 text-slate-700">
@@ -367,29 +367,30 @@ export default function SaleReturnList() {
             <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-            <table className="min-w-[1100px] w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  {/* ✅ Actions FIRST */}
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">
-                    Action
-                  </th>
-                  {cols.returnDate    && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Return Date</th>}
-                  {cols.referenceNo   && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Reference No</th>}
-                  {cols.customer      && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Customer</th>}
-                  {cols.location      && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Location</th>}
-                  {cols.status        && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</th>}
-                  {cols.paymentStatus && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Payment</th>}
-                  {cols.paidAmount    && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Paid</th>}
-                  {cols.dueAmount     && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Due</th>}
-                  {cols.grandTotal    && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Grand Total</th>}
-                  {cols.addedBy       && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Added By</th>}
-                  {cols.createdAt     && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>}
-                </tr>
-              </thead>
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+            <div className="overflow-x-auto" style={{ overflow: 'visible' }}>
+              <table className="min-w-[1100px] w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    {/* ✅ Actions FIRST */}
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">
+                      Action
+                    </th>
+                    {cols.returnDate    && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Return Date</th>}
+                    {cols.referenceNo   && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Reference No</th>}
+                    {cols.customer      && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Customer</th>}
+                    {cols.location      && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Location</th>}
+                    {cols.status        && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</th>}
+                    {cols.paymentStatus && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Payment</th>}
+                    {cols.paidAmount    && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Paid</th>}
+                    {cols.dueAmount     && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Due</th>}
+                    {cols.grandTotal    && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Grand Total</th>}
+                    {cols.addedBy       && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Added By</th>}
+                    {cols.createdAt     && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>}
+                  </tr>
+                </thead>
 
-              <tbody>
+                <tbody style={{ position: 'relative' }}>
                 {loading ? (
                   <tr>
                     <td className="px-4 py-6 text-sm text-slate-500" colSpan={visibleCols.length + 1}>
@@ -401,7 +402,7 @@ export default function SaleReturnList() {
                     <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50 transition">
 
                       {/* ✅ Actions cell FIRST */}
-                      <td className="px-4 py-3 no-print">
+                      <td className="px-4 py-3 no-print" style={{ position: 'relative' }}>
                         <div className="relative inline-block" data-action-anchor>
                           <button
                             className="text-xs border border-slate-300 text-slate-600 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 transition"
@@ -411,7 +412,13 @@ export default function SaleReturnList() {
                           </button>
 
                           {actionOpenId === r._id && (
-                            <div className="absolute left-0 z-50 mt-2 w-52 bg-white border border-slate-200 rounded-xl shadow-lg p-2">
+                            <div 
+                              className="absolute mt-2 w-52 bg-white border border-slate-200 rounded-xl shadow-lg p-2 left-0 top-full"
+                              style={{ 
+                                zIndex: 10000,
+                                minWidth: '200px'
+                              }}
+                            >
                               {/* View */}
                               <button
                                 className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
@@ -420,7 +427,7 @@ export default function SaleReturnList() {
                                   window.location.href = `/erp/sales/returns/${r._id}`;
                                 }}
                               >
-                                View
+                                👁 View
                               </button>
 
                               {/* Edit — only DRAFT */}
@@ -432,7 +439,7 @@ export default function SaleReturnList() {
                                     window.location.href = `/erp/sales/returns/new?id=${r._id}`;
                                   }}
                                 >
-                                  Edit
+                                  ✏️ Edit
                                 </button>
                               )}
 
@@ -442,7 +449,7 @@ export default function SaleReturnList() {
                                   className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-rose-50 text-rose-700"
                                   onClick={() => { setActionOpenId(null); cancelReturn(r._id); }}
                                 >
-                                  Cancel (Reverse)
+                                  ❌ Cancel (Reverse)
                                 </button>
                               )}
 
@@ -452,7 +459,7 @@ export default function SaleReturnList() {
                                   className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-rose-50 text-rose-700"
                                   onClick={() => { setActionOpenId(null); deleteDraft(r._id); }}
                                 >
-                                  Delete Draft
+                                  🗑 Delete Draft
                                 </button>
                               )}
                             </div>
@@ -492,10 +499,10 @@ export default function SaleReturnList() {
                     </td>
                   </tr>
                 )}
-              </tbody>
+                </tbody>
 
-              {/* ── Footer totals ── */}
-              <tfoot>
+                {/* ── Footer totals ── */}
+                <tfoot>
                 <tr className="border-t border-slate-200 bg-slate-50">
                   <td
                     className="px-4 py-3 font-semibold text-slate-700"
@@ -522,8 +529,9 @@ export default function SaleReturnList() {
                     </td>
                   )}
                 </tr>
-              </tfoot>
-            </table>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </div>
 

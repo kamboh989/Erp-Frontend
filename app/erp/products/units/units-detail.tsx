@@ -25,6 +25,9 @@ export default function UnitsPage() {
   const [open, setOpen] = useState(false);
   const [editRow, setEditRow] = useState<Row | null>(null);
 
+  // action dropdown state
+  const [actionOpenId, setActionOpenId] = useState<string | null>(null);
+
   const [colsOpen, setColsOpen] = useState(false);
   const colsMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -96,13 +99,20 @@ export default function UnitsPage() {
   // close columns popover on outside click / ESC
   useEffect(() => {
     function onDocDown(e: MouseEvent) {
-      if (!colsOpen) return;
-      const el = colsMenuRef.current;
-      if (!el) return;
-      if (e.target instanceof Node && !el.contains(e.target)) setColsOpen(false);
+      if (colsOpen) {
+        const el = colsMenuRef.current;
+        if (el && e.target instanceof Node && !el.contains(e.target)) setColsOpen(false);
+      }
+      if (actionOpenId) {
+        const t = e.target as HTMLElement;
+        if (!t.closest?.('[data-action-anchor]')) setActionOpenId(null);
+      }
     }
     function onEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") setColsOpen(false);
+      if (e.key === "Escape") {
+        setColsOpen(false);
+        setActionOpenId(null);
+      }
     }
     document.addEventListener("mousedown", onDocDown);
     document.addEventListener("keydown", onEsc);
@@ -110,7 +120,7 @@ export default function UnitsPage() {
       document.removeEventListener("mousedown", onDocDown);
       document.removeEventListener("keydown", onEsc);
     };
-  }, [colsOpen]);
+  }, [colsOpen, actionOpenId]);
 
   // print/pdf
   const [printedAt, setPrintedAt] = useState("");
@@ -218,7 +228,7 @@ export default function UnitsPage() {
               </button>
 
               {colsOpen && (
-                <div className="absolute right-0 z-50 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg p-3">
+                <div className="absolute right-0 z-[9999] mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg p-3">
                   {(
                     [
                       ["name", "Name"],
@@ -262,21 +272,22 @@ export default function UnitsPage() {
             <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-            <table className="min-w-full w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
-                  {cols.name && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Name</th>}
-                  {cols.short && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Short name</th>}
-                  {cols.allowDecimal && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Allow decimal</th>
-                  )}
-                  {cols.createdAt && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>}
-                </tr>
-              </thead>
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+            <div className="overflow-x-auto" style={{ overflow: 'visible' }}>
+              <table className="min-w-full w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
+                    {cols.name && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Name</th>}
+                    {cols.short && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Short name</th>}
+                    {cols.allowDecimal && (
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Allow decimal</th>
+                    )}
+                    {cols.createdAt && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>}
+                  </tr>
+                </thead>
 
-              <tbody>
+                <tbody style={{ position: 'relative' }}>
                 {loading ? (
                   <tr>
                     <td className="px-4 py-6 text-sm text-slate-500" colSpan={visibleCount}>
@@ -286,23 +297,55 @@ export default function UnitsPage() {
                 ) : rows.length ? (
                   rows.map((r) => (
                     <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50 transition">
-                      <td className="px-4 py-3 no-print">
-                        <div className="flex gap-2">
+                      <td className="px-4 py-3 no-print" style={{ position: 'relative' }}>
+                        <div className="relative inline-block" data-action-anchor>
                           <button
-                            className="text-xs border border-indigo-200 text-indigo-700 bg-indigo-50 rounded-lg px-3 py-1.5 hover:bg-indigo-100"
-                            onClick={() => {
-                              setEditRow(r);
-                              setOpen(true);
-                            }}
+                            className="text-xs border border-slate-300 text-slate-600 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50"
+                            onClick={() => setActionOpenId(actionOpenId === r._id ? null : r._id)}
                           >
-                            Edit
+                            Actions ▾
                           </button>
-                          <button
-                            className="text-xs border border-rose-200 text-rose-700 bg-rose-50 rounded-lg px-3 py-1.5 hover:bg-rose-100"
-                            onClick={() => onDelete(r._id)}
-                          >
-                            Delete
-                          </button>
+
+                          {actionOpenId === r._id && (
+                            <div 
+                              className="absolute mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg p-2 left-0 top-full"
+                              style={{ 
+                                zIndex: 10000,
+                                minWidth: '180px'
+                              }}
+                            >
+                              <button
+                                className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
+                                onClick={() => {
+                                  setActionOpenId(null);
+                                  window.location.href = `/erp/products/units/${r._id}`;
+                                }}
+                              >
+                                👁 View
+                              </button>
+
+                              <button
+                                className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
+                                onClick={() => {
+                                  setActionOpenId(null);
+                                  setEditRow(r);
+                                  setOpen(true);
+                                }}
+                              >
+                                ✏️ Edit
+                              </button>
+
+                              <button
+                                className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-rose-700"
+                                onClick={() => {
+                                  setActionOpenId(null);
+                                  onDelete(r._id);
+                                }}
+                              >
+                                🗑 Delete
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -319,8 +362,9 @@ export default function UnitsPage() {
                     </td>
                   </tr>
                 )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 

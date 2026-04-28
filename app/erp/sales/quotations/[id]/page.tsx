@@ -126,10 +126,93 @@ export default function QuotationDetailPage() {
         @media print {
           body * { visibility: hidden !important; }
           #quotation-print, #quotation-print * { visibility: visible !important; }
-          #quotation-print { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
-          .no-print { display: none !important; }
-          table { border-collapse: collapse !important; }
-          th, td { border: 1px solid #ddd !important; }
+          #quotation-print { 
+            position: absolute !important; 
+            left: 0 !important; 
+            top: 0 !important; 
+            width: 100% !important; 
+            padding: 0 !important; 
+            margin: 0 !important; 
+          }
+          .no-print { display: none !important; visibility: hidden !important; }
+          
+          /* Compact layout for single page */
+          .print-section {
+            margin-bottom: 15px !important;
+            padding: 15px !important;
+            border: 1px solid #ddd !important;
+            border-radius: 8px !important;
+            page-break-inside: avoid !important;
+          }
+          
+          .print-grid {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 20px !important;
+          }
+          
+          .print-field {
+            margin-bottom: 8px !important;
+          }
+          
+          .print-label {
+            font-size: 9px !important;
+            font-weight: 600 !important;
+            color: #666 !important;
+            margin-bottom: 2px !important;
+          }
+          
+          .print-value {
+            font-size: 11px !important;
+            color: #000 !important;
+            font-weight: 500 !important;
+          }
+          
+          .print-header {
+            text-align: center !important;
+            margin-bottom: 20px !important;
+            padding-bottom: 10px !important;
+            border-bottom: 2px solid #000 !important;
+          }
+          
+          .print-title {
+            font-size: 18px !important;
+            font-weight: bold !important;
+            margin-bottom: 5px !important;
+          }
+          
+          .print-subtitle {
+            font-size: 14px !important;
+            margin-bottom: 3px !important;
+          }
+          
+          .print-meta {
+            font-size: 8px !important;
+            color: #666 !important;
+          }
+          
+          table { 
+            border-collapse: collapse !important; 
+            width: 100% !important;
+            min-width: auto !important;
+            table-layout: auto !important;
+          }
+          
+          th, td { 
+            border: 1px solid #ddd !important; 
+            font-size: 10px !important;
+            padding: 4px !important;
+            white-space: nowrap !important;
+          }
+          
+          .overflow-x-auto {
+            overflow: visible !important;
+          }
+          
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
+          }
         }
       `}</style>
 
@@ -167,71 +250,73 @@ export default function QuotationDetailPage() {
         </div>
 
         <div id="quotation-print" className="space-y-6">
-          <div className="hidden print:block">
-            <div className="text-lg font-semibold">Quotation Detail</div>
-            <div className="text-sm">Reference: {row.referenceNo}</div>
-            <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
+          <div className="hidden print:block print-header">
+            <div className="print-title">Quotation Detail Report</div>
+            <div className="print-subtitle">Reference: {row.referenceNo}</div>
+            <div className="print-meta">Customer: {row.customerNameSnapshot || "N/A"} | Printed: {printedAt || "-"}</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
-            <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 print-section">
+            <div className="flex items-center justify-between flex-wrap gap-3 print-grid">
               <div className="text-sm text-slate-700 space-y-1">
-                <div><b>Quotation Date:</b> {fmtPK(row.quotationDate)}</div>
-                <div><b>Expiry Date:</b> {fmtPK(row.expiryDate)}</div>
-                <div><b>Customer:</b> {row.customerNameSnapshot || "-"}</div>
-                <div><b>Location:</b> {row.locationName || "-"}</div>
+                <div className="print-field"><span className="print-label">Quotation Date:</span> <span className="print-value">{fmtPK(row.quotationDate)}</span></div>
+                <div className="print-field"><span className="print-label">Expiry Date:</span> <span className="print-value">{fmtPK(row.expiryDate)}</span></div>
+                <div className="print-field"><span className="print-label">Customer:</span> <span className="print-value">{row.customerNameSnapshot || "-"}</span></div>
+                <div className="print-field"><span className="print-label">Location:</span> <span className="print-value">{row.locationName || "-"}</span></div>
               </div>
 
               <div className="text-sm text-slate-700 space-y-1">
-                <div>
-                  <b>Status:</b>{" "}
-                  <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge(row.status)}`}>
+                <div className="print-field">
+                  <span className="print-label">Status:</span>{" "}
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge(row.status)} print-value`}>
                     {row.status}
                   </span>
                 </div>
-                <div><b>Added By:</b> {row.createdBy?.name || row.createdBy?.email || "-"}</div>
-                <div><b>Created At:</b> {fmtPK(row.createdAt)}</div>
-                <div><b>Updated By:</b> {row.updatedBy?.name || row.updatedBy?.email || "-"}</div>
+                <div className="print-field"><span className="print-label">Added By:</span> <span className="print-value">{row.createdBy?.name || row.createdBy?.email || "-"}</span></div>
+                <div className="print-field"><span className="print-label">Created At:</span> <span className="print-value">{fmtPK(row.createdAt)}</span></div>
+                <div className="print-field"><span className="print-label">Updated By:</span> <span className="print-value">{row.updatedBy?.name || row.updatedBy?.email || "-"}</span></div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-            <table className="min-w-[900px] w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Product</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">SKU</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Qty</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Unit Price</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Line Total</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {(row.items || []).map((it: QuotationItem, idx: number) => (
-                  <tr key={idx} className="border-t border-slate-100 hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-700 font-medium whitespace-nowrap">{it.nameSnapshot || "-"}</td>
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{it.skuSnapshot || "-"}</td>
-                    <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{money(it.qty)}</td>
-                    <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(it.unitPrice)}</td>
-                    <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(it.lineTotal)}</td>
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm print-section">
+            <div className="overflow-x-auto" style={{ overflow: 'visible' }}>
+              <table className="min-w-[900px] w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Product</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">SKU</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Qty</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Unit Price</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Line Total</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+
+                <tbody>
+                  {(row.items || []).map((it: QuotationItem, idx: number) => (
+                    <tr key={idx} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className="px-4 py-3 text-slate-700 font-medium whitespace-nowrap">{it.nameSnapshot || "-"}</td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{it.skuSnapshot || "-"}</td>
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{money(it.qty)}</td>
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(it.unitPrice)}</td>
+                      <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(it.lineTotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 print-section">
             <div className="text-sm text-slate-700 space-y-1 text-right">
-              <div><b>Subtotal:</b> Rs. {money(row.subtotal)}</div>
-              <div><b>Shipping/Other:</b> Rs. {money(row.shippingCharges)}</div>
-              <div className="text-base"><b>Grand Total:</b> Rs. {money(row.grandTotal)}</div>
+              <div className="print-field"><span className="print-label">Subtotal:</span> <span className="print-value">Rs. {money(row.subtotal)}</span></div>
+              <div className="print-field"><span className="print-label">Shipping/Other:</span> <span className="print-value">Rs. {money(row.shippingCharges)}</span></div>
+              <div className="text-base print-field"><span className="print-label">Grand Total:</span> <span className="print-value font-bold">Rs. {money(row.grandTotal)}</span></div>
             </div>
 
             {row.notes ? (
               <div className="mt-4 text-sm text-slate-700">
-                <b>Notes:</b> {row.notes}
+                <div className="print-field"><span className="print-label">Notes:</span> <span className="print-value">{row.notes}</span></div>
               </div>
             ) : null}
           </div>

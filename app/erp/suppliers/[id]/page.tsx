@@ -10,7 +10,7 @@ import { ContactPersonsPanel } from "@/app/components/suppliers/ContactPersonsPa
 type Tab =
   | "LEDGER"
   | "PURCHASES"
-  | "ORDERS" // ✅ NEW
+  | "ORDERS"
   | "STOCK_REPORT"
   | "DOCS"
   | "PAYMENTS"
@@ -53,6 +53,8 @@ export default function SupplierViewPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [notes, setNotes] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(false);
 
   const [ledgerRows, setLedgerRows] = useState<any[]>([]);
   const [ledgerSummary, setLedgerSummary] = useState({
@@ -67,7 +69,7 @@ export default function SupplierViewPage() {
   // Stock report UI state (placeholder)
   const [businessLocation, setBusinessLocation] = useState("All locations");
 
-  // ✅ NEW: Orders tab state
+  // Orders tab state
   const [orders, setOrders] = useState<any[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersTotal, setOrdersTotal] = useState(0);
@@ -78,6 +80,8 @@ export default function SupplierViewPage() {
 
     const opening = Number(nextContact?.moreInfo?.openingBalance ?? nextContact?.totals?.openingBalanceDue ?? 0) || 0;
     const advance = Number(nextContact?.totals?.advanceBalance ?? 0) || 0;
+    const totalPurchaseDue = Number(nextContact?.totals?.totalPurchaseDue ?? 0) || 0;
+    const totalPurchaseReturnDue = Number(nextContact?.totals?.totalPurchaseReturnDue ?? 0) || 0;
 
     if (opening > 0) {
       rows.push({
@@ -88,6 +92,30 @@ export default function SupplierViewPage() {
         credit: 0,
         method: "-",
         note: "Opening balance",
+      });
+    }
+
+    if (totalPurchaseDue > 0) {
+      rows.push({
+        date: nextContact?.createdAt || new Date().toISOString(),
+        type: "Purchase Due",
+        ref: "-",
+        debit: totalPurchaseDue,
+        credit: 0,
+        method: "-",
+        note: "Total purchase due",
+      });
+    }
+
+    if (totalPurchaseReturnDue > 0) {
+      rows.push({
+        date: nextContact?.createdAt || new Date().toISOString(),
+        type: "Purchase Return",
+        ref: "-",
+        debit: 0,
+        credit: totalPurchaseReturnDue,
+        method: "-",
+        note: "Purchase returns",
       });
     }
 
@@ -120,7 +148,7 @@ export default function SupplierViewPage() {
     const totalDebit = rows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
     const totalCredit = rows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
 
-    const totalInvoice = 0; // purchases module later
+    const totalInvoice = totalPurchaseDue;
     const totalPaid = totalCredit;
     const balanceDue = totalDebit - totalCredit;
 
@@ -163,17 +191,24 @@ export default function SupplierViewPage() {
     setActivities(data.rows || []);
   }
 
-  // ✅ NEW: load supplier orders
+  async function loadPurchases() {
+    setPurchasesLoading(true);
+    try {
+      const res = await fetch(`/api/erp/suppliers/${id}/purchases`, { cache: "no-store" });
+      const data = await res.json();
+      setPurchases(data.rows || []);
+    } finally {
+      setPurchasesLoading(false);
+    }
+  }
+
+  // load supplier orders
   async function loadOrders() {
     setOrdersLoading(true);
     try {
-      const sp = new URLSearchParams();
-      sp.set("page", "1");
-      sp.set("limit", "25");
-      sp.set("supplierId", id); // ✅ IMPORTANT: API must support this
-      const res = await fetch(`/api/erp/purchase/order?${sp.toString()}`, { cache: "no-store" });
-      const data = await res.json().catch(() => ({}));
-      setOrders(Array.isArray(data.rows) ? data.rows : []);
+      const res = await fetch(`/api/erp/suppliers/${id}/orders`, { cache: "no-store" });
+      const data = await res.json();
+      setOrders(data.rows || []);
       setOrdersTotal(Number(data.total || 0));
     } finally {
       setOrdersLoading(false);
@@ -193,8 +228,7 @@ export default function SupplierViewPage() {
     if (tab === "DOCS") loadNotes();
     if (tab === "ACTIVITIES") loadActivities();
     if (tab === "LEDGER") loadPayments();
-
-    // ✅ NEW
+    if (tab === "PURCHASES") loadPurchases();
     if (tab === "ORDERS") loadOrders();
   }, [tab, contact]);
 
@@ -287,12 +321,10 @@ export default function SupplierViewPage() {
           </div>
 
           <div className="text-sm text-slate-700 space-y-1">
-            <div>
-              <b>Tax number:</b> {contact.moreInfo?.taxNumber || "-"}
-            </div>
-            <div>
-              <b>Pay term:</b> {contact.moreInfo?.payTerm || "-"}
-            </div>
+            <div><b>Total Purchase Due:</b> Rs. {Number(contact.totals?.totalPurchaseDue || 0)}</div>
+            <div><b>Purchase Returns:</b> Rs. {Number(contact.totals?.totalPurchaseReturnDue || 0)}</div>
+            <div><b>Advance Balance:</b> Rs. {Number(contact.totals?.advanceBalance || 0)}</div>
+            <div><b>Opening Balance:</b> Rs. {Number(contact.totals?.openingBalanceDue || 0)}</div>
           </div>
 
           <div className="no-print flex gap-2">
@@ -382,65 +414,113 @@ export default function SupplierViewPage() {
         </div>
       )}
 
-      {/* PURCHASES (placeholder - as-is) */}
+      {/* PURCHASES (updated with real integration) */}
       {tab === "PURCHASES" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-sm font-semibold text-slate-800">Purchases</div>
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <span>Date Range:</span>
-              <input
-                className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 shadow-sm"
-                value={purchaseDateRange}
-                onChange={(e) => setPurchaseDateRange(e.target.value)}
-              />
+            <div className="text-sm font-semibold text-slate-800">Purchase Bills & Invoices</div>
+            <div className="text-xs text-slate-500">
+              {purchasesLoading ? "Loading..." : `${purchases.length} records`}
             </div>
           </div>
 
           <div className="overflow-auto border border-slate-200 rounded-2xl">
-            <table className="min-w-[1100px] w-full">
+            <table className="min-w-[1000px] w-full">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className={tableHead}>Action</th>
                   <th className={tableHead}>Date</th>
                   <th className={tableHead}>Reference No</th>
-                  <th className={tableHead}>Location</th>
-                  <th className={tableHead}>Supplier</th>
-                  <th className={tableHead}>Purchase Status</th>
-                  <th className={tableHead}>Payment Status</th>
-                  <th className={tableHead}>Grand Total</th>
-                  <th className={tableHead}>Payment due</th>
-                  <th className={tableHead}>Added By</th>
+                  <th className={tableHead}>Type</th>
+                  <th className={tableHead}>Status</th>
+                  <th className={tableHead}>Amount</th>
+                  <th className={tableHead}>Due Amount</th>
+                  <th className={tableHead}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td colSpan={10} className="px-4 py-8 text-sm text-slate-500">
-                    No data available in table
-                  </td>
-                </tr>
+                {purchasesLoading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-6 text-sm text-slate-500">
+                      Loading purchase data...
+                    </td>
+                  </tr>
+                ) : purchases.length ? (
+                  purchases.map((purchase: any) => (
+                    <tr key={purchase._id} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className={tableCell}>{fmtPK(purchase.date)}</td>
+                      <td className={tableCell}>{purchase.referenceNo}</td>
+                      <td className={tableCell}>{purchase.type}</td>
+                      <td className={tableCell}>
+                        <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700">
+                          {purchase.status}
+                        </span>
+                      </td>
+                      <td className={tableCell}>Rs. {money(purchase.amount)}</td>
+                      <td className={tableCell}>Rs. {money(purchase.dueAmount)}</td>
+                      <td className={tableCell}>
+                        <button className="text-xs border border-indigo-200 text-indigo-700 bg-indigo-50 rounded-lg px-3 py-1.5 hover:bg-indigo-100">
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-8 text-sm text-slate-500 text-center">
+                      <div className="space-y-2">
+                        <div>No purchase records found for this supplier</div>
+                        <div className="text-xs text-slate-400">
+                          Purchase bills and invoices will appear here when the purchase module is integrated
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
 
-          <div className="text-sm text-slate-700">
-            <b>Total:</b> Rs 0.00 &nbsp; | &nbsp; Purchase Due - Rs 0.00 &nbsp; | &nbsp; Purchase Return - Rs 0.00
+          <div className="mt-4 text-sm text-slate-700 bg-slate-50 rounded-lg p-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <div className="text-xs text-slate-500">Total Purchases</div>
+                <div className="font-semibold">Rs. {Number(contact.totals?.totalPurchaseDue || 0)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">Purchase Returns</div>
+                <div className="font-semibold text-orange-600">Rs. {Number(contact.totals?.totalPurchaseReturnDue || 0)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">Net Due</div>
+                <div className="font-semibold text-red-600">
+                  Rs. {Math.max(0, (Number(contact.totals?.totalPurchaseDue || 0) - Number(contact.totals?.totalPurchaseReturnDue || 0) - Number(contact.totals?.advanceBalance || 0)))}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">Advance</div>
+                <div className="font-semibold text-green-600">Rs. {Number(contact.totals?.advanceBalance || 0)}</div>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ✅ NEW: ORDERS TAB */}
+      {/* ORDERS TAB */}
       {tab === "ORDERS" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div>
               <div className="text-sm font-semibold text-slate-800">Purchase Orders</div>
-              <div className="text-xs text-slate-500">Total: {ordersTotal}</div>
+              <div className="text-xs text-slate-500">
+                {ordersLoading ? "Loading..." : `Total: ${ordersTotal} orders`}
+              </div>
             </div>
 
-            <a className={pillBtn} href="/erp/purchase/order">
-              View All Orders
-            </a>
+            <div className="flex gap-2">
+              <button className={pillBtn} onClick={() => window.location.href = '/erp/purchase/orders'}>
+                View All Orders
+              </button>
+            </div>
           </div>
 
           <div className="overflow-auto border border-slate-200 rounded-2xl">
@@ -449,7 +529,6 @@ export default function SupplierViewPage() {
                 <tr>
                   <th className={tableHead}>Date</th>
                   <th className={tableHead}>Reference</th>
-                  <th className={tableHead}>Location</th>
                   <th className={tableHead}>Status</th>
                   <th className={tableHead}>Total</th>
                   <th className={tableHead}>Action</th>
@@ -459,8 +538,8 @@ export default function SupplierViewPage() {
               <tbody>
                 {ordersLoading ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-sm text-slate-500">
-                      Loading...
+                    <td colSpan={5} className="px-4 py-6 text-sm text-slate-500">
+                      Loading orders...
                     </td>
                   </tr>
                 ) : orders.length ? (
@@ -468,7 +547,6 @@ export default function SupplierViewPage() {
                     <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50">
                       <td className={tableCell}>{fmtPK(r.orderDate)}</td>
                       <td className={tableCell}>{r.referenceNo}</td>
-                      <td className={tableCell}>{r.locationName || "-"}</td>
                       <td className="px-4 py-3 text-sm">
                         <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge(r.status)}`}>
                           {r.status}
@@ -476,19 +554,21 @@ export default function SupplierViewPage() {
                       </td>
                       <td className={tableCell}>Rs {money(r.subtotal)}</td>
                       <td className="px-4 py-3 text-sm">
-                        <a
-                          className="text-xs border border-indigo-200 text-indigo-700 bg-indigo-50 rounded-lg px-3 py-1.5 hover:bg-indigo-100"
-                          href={`/erp/purchase/order/${r._id}`}
-                        >
+                        <button className="text-xs border border-indigo-200 text-indigo-700 bg-indigo-50 rounded-lg px-3 py-1.5 hover:bg-indigo-100">
                           View
-                        </a>
+                        </button>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6 text-sm text-slate-500">
-                      No orders found for this supplier
+                    <td colSpan={5} className="px-4 py-8 text-sm text-slate-500 text-center">
+                      <div className="space-y-2">
+                        <div>No purchase orders found for this supplier</div>
+                        <div className="text-xs text-slate-400">
+                          Purchase orders will appear here when the purchase orders module is integrated
+                        </div>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -496,17 +576,17 @@ export default function SupplierViewPage() {
             </table>
           </div>
 
-          <div className="text-xs text-slate-500">
-            Note: Orders do not affect stock/due until converted to Purchase (Bill).
+          <div className="text-xs text-slate-500 bg-slate-50 rounded-lg p-3">
+            <b>Note:</b> Purchase orders are preliminary documents that don't affect stock or supplier balance until converted to Purchase Bills.
           </div>
         </div>
       )}
 
-      {/* STOCK REPORT (placeholder - as-is) */}
+      {/* STOCK REPORT (enhanced with proper structure) */}
       {tab === "STOCK_REPORT" && (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="text-sm font-semibold text-slate-800">Stock Report</div>
+            <div className="text-sm font-semibold text-slate-800">Stock Report by Supplier</div>
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <span>Business Location:</span>
               <select
@@ -520,23 +600,27 @@ export default function SupplierViewPage() {
           </div>
 
           <div className="overflow-auto border border-slate-200 rounded-2xl">
-            <table className="min-w-[1100px] w-full">
+            <table className="min-w-[1000px] w-full">
               <thead className="bg-slate-50">
                 <tr>
                   <th className={tableHead}>Product</th>
                   <th className={tableHead}>SKU</th>
                   <th className={tableHead}>Purchase Quantity</th>
-                  <th className={tableHead}>Total Sold</th>
-                  <th className={tableHead}>Total Unit Transfered</th>
-                  <th className={tableHead}>Total returned</th>
-                  <th className={tableHead}>Current stock</th>
-                  <th className={tableHead}>Current Stock Value</th>
+                  <th className={tableHead}>Current Stock</th>
+                  <th className={tableHead}>Stock Value</th>
+                  <th className={tableHead}>Last Purchase Date</th>
+                  <th className={tableHead}>Last Purchase Price</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-sm text-slate-500">
-                    No data available in table
+                  <td colSpan={7} className="px-4 py-8 text-sm text-slate-500 text-center">
+                    <div className="space-y-2">
+                      <div>No stock data available for this supplier</div>
+                      <div className="text-xs text-slate-400">
+                        Stock information will appear here when products are purchased from this supplier
+                      </div>
+                    </div>
                   </td>
                 </tr>
               </tbody>

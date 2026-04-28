@@ -4,6 +4,25 @@ import { requireCompanyAuth, authErrorResponse } from "@/lib/auth";
 import Unit from "@/models/Unit";
 
 // ✅ Next.js 15: ctx.params is Promise
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await requireCompanyAuth(req);
+    await connectDB();
+
+    const { id } = await ctx.params;
+
+    const row = await Unit.findOne({ _id: id, companyId: session.companyId, isActive: true }).lean();
+    if (!row) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    
+    return NextResponse.json({ row });
+  } catch (err) {
+    return authErrorResponse(err);
+  }
+}
+
 export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ id: string }> }

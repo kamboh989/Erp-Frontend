@@ -859,23 +859,24 @@ export default function PurchaseReturnsOnePage() {
                 <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-                <table className="min-w-[1150px] w-full text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Reference No</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Supplier</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Location</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Grand Total</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Added By</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>
-                    </tr>
-                  </thead>
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-sm" style={{ overflow: 'visible' }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="min-w-[1150px] w-full text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Reference No</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Supplier</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Location</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Grand Total</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Added By</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>
+                      </tr>
+                    </thead>
 
-                  <tbody>
+                    <tbody style={{ position: 'relative' }}>
                     {loading ? (
                       <tr>
                         <td className="px-4 py-6 text-sm text-slate-500" colSpan={9}>
@@ -885,32 +886,58 @@ export default function PurchaseReturnsOnePage() {
                     ) : rows.length ? (
                       rows.map((r) => (
                         <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50 transition">
-                          <td className="px-4 py-3 no-print">
-                            <div className="flex gap-2 flex-wrap">
+                          <td className="px-4 py-3 no-print" style={{ position: 'relative' }}>
+                            <div className="relative">
                               <button
-                                className="text-xs border border-slate-300 text-slate-600 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50"
-                                onClick={() => openDetail(r._id)}
+                                className="text-xs border border-slate-300 text-slate-600 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50 flex items-center gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const dropdown = e.currentTarget.nextElementSibling as HTMLElement;
+                                  if (dropdown) {
+                                    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+                                  }
+                                }}
                               >
-                                View
+                                Actions ▼
                               </button>
-
-                              {can.cancel && r.status === "FINAL" ? (
+                              <div
+                                className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[120px]"
+                                style={{ display: 'none', zIndex: 10000 }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
-                                  className="text-xs border border-rose-200 text-rose-700 bg-rose-50 rounded-lg px-3 py-1.5 hover:bg-rose-100"
-                                  onClick={() => cancelReturn(r._id)}
+                                  className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                                  onClick={() => {
+                                    window.location.href = `/erp/purchase/return/${r._id}`;
+                                  }}
                                 >
-                                  Cancel
+                                  👁 View
                                 </button>
-                              ) : null}
-
-                              {can.delete && r.status === "DRAFT" ? (
-                                <button
-                                  className="text-xs border border-rose-200 text-rose-700 bg-rose-50 rounded-lg px-3 py-1.5 hover:bg-rose-100"
-                                  onClick={() => deleteDraftReturn(r._id)}
-                                >
-                                  Delete Draft
-                                </button>
-                              ) : null}
+                                {can.cancel && r.status === "FINAL" && (
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2"
+                                    onClick={() => {
+                                      cancelReturn(r._id);
+                                      const dropdown = document.querySelector(`[data-dropdown="${r._id}"]`) as HTMLElement;
+                                      if (dropdown) dropdown.style.display = 'none';
+                                    }}
+                                  >
+                                    ❌ Cancel
+                                  </button>
+                                )}
+                                {can.delete && r.status === "DRAFT" && (
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-xs text-rose-700 hover:bg-rose-50 flex items-center gap-2"
+                                    onClick={() => {
+                                      deleteDraftReturn(r._id);
+                                      const dropdown = document.querySelector(`[data-dropdown="${r._id}"]`) as HTMLElement;
+                                      if (dropdown) dropdown.style.display = 'none';
+                                    }}
+                                  >
+                                    🗑 Delete
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </td>
 
@@ -935,18 +962,19 @@ export default function PurchaseReturnsOnePage() {
                         </td>
                       </tr>
                     )}
-                  </tbody>
+                    </tbody>
 
-                  <tfoot>
-                    <tr className="border-t border-slate-200 bg-slate-50">
-                      <td className="px-4 py-3 font-semibold text-slate-700" colSpan={6}>
-                        Total:
-                      </td>
-                      <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">Rs. {money(totals.grandTotal)}</td>
-                      <td className="px-4 py-3" colSpan={2} />
-                    </tr>
-                  </tfoot>
-                </table>
+                    <tfoot>
+                      <tr className="border-t border-slate-200 bg-slate-50">
+                        <td className="px-4 py-3 font-semibold text-slate-700" colSpan={6}>
+                          Total:
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">Rs. {money(totals.grandTotal)}</td>
+                        <td className="px-4 py-3" colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
             </div>
 

@@ -312,7 +312,7 @@ export default function QuotationList() {
               </button>
 
               {colsOpen && (
-                <div className="absolute left-0 z-50 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg p-3">
+                <div className="absolute left-0 z-[9999] mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-lg p-3">
                   {(
                     [
                       ["quotationDate", "Date"],
@@ -368,24 +368,25 @@ export default function QuotationList() {
             <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-            <table className="min-w-[1000px] w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
-                  {cols.quotationDate && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Date</th>}
-                  {cols.expiryDate && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Expiry</th>}
-                  {cols.referenceNo && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Reference No</th>}
-                  {cols.customer && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Customer</th>}
-                  {cols.location && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Location</th>}
-                  {cols.status && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</th>}
-                  {cols.grandTotal && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Grand Total</th>}
-                  {cols.addedBy && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Added By</th>}
-                  {cols.createdAt && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>}
-                </tr>
-              </thead>
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm">
+            <div className="overflow-x-auto" style={{ overflow: 'visible' }}>
+              <table className="min-w-[1000px] w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
+                    {cols.quotationDate && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Date</th>}
+                    {cols.expiryDate && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Expiry</th>}
+                    {cols.referenceNo && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Reference No</th>}
+                    {cols.customer && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Customer</th>}
+                    {cols.location && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Location</th>}
+                    {cols.status && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</th>}
+                    {cols.grandTotal && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Grand Total</th>}
+                    {cols.addedBy && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Added By</th>}
+                    {cols.createdAt && <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>}
+                  </tr>
+                </thead>
 
-              <tbody>
+                <tbody style={{ position: 'relative' }}>
                 {loading ? (
                   <tr>
                     <td className="px-4 py-6 text-sm text-slate-500" colSpan={visibleCols + 1}>Loading...</td>
@@ -393,7 +394,7 @@ export default function QuotationList() {
                 ) : rows.length ? (
                   rows.map((r) => (
                     <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50 transition">
-                      <td className="px-4 py-3 no-print">
+                      <td className="px-4 py-3 no-print" style={{ position: 'relative' }}>
                         <div className="relative inline-block" data-action-anchor>
                           <button
                             className="text-xs border border-slate-300 text-slate-600 bg-white rounded-lg px-3 py-1.5 hover:bg-slate-50"
@@ -403,7 +404,13 @@ export default function QuotationList() {
                           </button>
 
                           {actionOpenId === r._id && (
-                            <div className="absolute z-50 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg p-2">
+                            <div 
+                              className="absolute mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg p-2 left-0 top-full"
+                              style={{ 
+                                zIndex: 10000,
+                                minWidth: '200px'
+                              }}
+                            >
                               <button
                                 className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-slate-50 text-slate-700"
                                 onClick={() => {
@@ -411,7 +418,7 @@ export default function QuotationList() {
                                   window.location.href = `/erp/sales/quotations/${r._id}`;
                                 }}
                               >
-                                View
+                                👁 View
                               </button>
 
                               <button
@@ -421,7 +428,7 @@ export default function QuotationList() {
                                   window.location.href = `/erp/sales/quotations/new?id=${r._id}`;
                                 }}
                               >
-                                Edit
+                                ✏️ Edit
                               </button>
 
                               {can.delete ? (
@@ -432,7 +439,7 @@ export default function QuotationList() {
                                     deleteDraft(r._id);
                                   }}
                                 >
-                                  Delete
+                                  🗑 Delete
                                 </button>
                               ) : null}
                             </div>
@@ -462,9 +469,9 @@ export default function QuotationList() {
                     <td className="px-4 py-6 text-sm text-slate-500" colSpan={visibleCols + 1}>No data available</td>
                   </tr>
                 )}
-              </tbody>
+                </tbody>
 
-              <tfoot>
+                <tfoot>
                 <tr className="border-t border-slate-200 bg-slate-50">
                   <td className="px-4 py-3 font-semibold text-slate-700" colSpan={Math.max(1, visibleCols - 1)}>
                     Total Grand Total:
@@ -475,8 +482,9 @@ export default function QuotationList() {
                     </td>
                   ) : null}
                 </tr>
-              </tfoot>
-            </table>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </div>
 

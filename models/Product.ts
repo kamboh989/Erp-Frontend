@@ -1,5 +1,13 @@
 import mongoose, { Schema, InferSchemaType } from "mongoose";
 
+const LocationStockSchema = new Schema(
+  {
+    locationId: { type: Schema.Types.ObjectId, ref: "Location", required: true },
+    stock: { type: Number, default: 0, min: 0 },
+  },
+  { _id: false }
+);
+
 const ProductSchema = new Schema(
   {
     companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true, index: true },
@@ -14,6 +22,7 @@ const ProductSchema = new Schema(
 
     manageStock: { type: Boolean, default: true },
     currentStock: { type: Number, default: 0 },
+    locationStock: { type: [LocationStockSchema], default: [] },
     
     openingStock: { type: Number, default: 0, min: 0 },
     alertQty: { type: Number, default: 0, min: 0 },

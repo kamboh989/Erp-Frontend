@@ -43,7 +43,7 @@ export function ActionDropdown({
         </button>
       )}
     >
-      <div className="py-1">
+      <div className="py-1 z-[9999] relative">
         <DropdownItem onClick={onPay}>
           <span className="flex items-center gap-2 text-sm text-slate-700 hover:text-indigo-600 transition">
             💰 Pay

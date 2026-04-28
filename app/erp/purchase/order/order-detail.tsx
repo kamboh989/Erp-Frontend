@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 type SupplierRow = any;
 type ProductRow = any;
@@ -29,6 +30,7 @@ type Item = { productId: string; name: string; sku: string; qty: number; unitCos
 
 export default function PurchaseOrdersPage() {
   const [mode, setMode] = useState<Mode>("LIST");
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
   const [can, setCan] = useState<{ admin: boolean; cancel: boolean; delete: boolean }>({
     admin: false,
@@ -75,6 +77,7 @@ export default function PurchaseOrdersPage() {
   const [total, setTotal] = useState(0);
   const [totals, setTotals] = useState<{ subtotal: number }>({ subtotal: 0 });
   const [loading, setLoading] = useState(false);
+  const [printedAt, setPrintedAt] = useState("");
 
   async function loadList() {
     setLoading(true);
@@ -128,6 +131,22 @@ export default function PurchaseOrdersPage() {
   const productBoxRef = useRef<HTMLDivElement | null>(null);
 
   const subtotal = useMemo(() => items.reduce((s, it) => s + money(it.qty) * money(it.unitCost), 0), [items]);
+
+  const exportCsvUrl = useMemo(() => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (status) sp.set("status", status);
+    if (locationFilter) sp.set("locationId", locationFilter);
+    return `/api/erp/purchase/order/export/csv?${sp.toString()}`;
+  }, [q, status, locationFilter]);
+
+  const exportExcelUrl = useMemo(() => {
+    const sp = new URLSearchParams();
+    if (q.trim()) sp.set("q", q.trim());
+    if (status) sp.set("status", status);
+    if (locationFilter) sp.set("locationId", locationFilter);
+    return `/api/erp/purchase/order/export/excel?${sp.toString()}`;
+  }, [q, status, locationFilter]);
 
   useEffect(() => {
     if (mode !== "ADD") return;
@@ -304,6 +323,15 @@ export default function PurchaseOrdersPage() {
   }
 
   /* ------------------------------- init/load ------------------------------- */
+  function onPrint() {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
+    window.print();
+  }
+
+  useEffect(() => {
+    setPrintedAt(new Date().toLocaleString("en-PK", { timeZone: "Asia/Karachi" }));
+  }, []);
+
   useEffect(() => {
     (async () => {
       await loadLocations();
@@ -334,11 +362,16 @@ export default function PurchaseOrdersPage() {
       const t = e.target as Node;
       if (supplierOpen && supplierBoxRef.current && !supplierBoxRef.current.contains(t)) setSupplierOpen(false);
       if (productOpen && productBoxRef.current && !productBoxRef.current.contains(t)) setProductOpen(false);
+      // Close dropdown when clicking outside
+      if (openDropdown && !(t as Element).closest('.relative')) {
+        setOpenDropdown(null);
+      }
     }
     function onEsc(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setSupplierOpen(false);
         setProductOpen(false);
+        setOpenDropdown(null);
       }
     }
     document.addEventListener("mousedown", onDocDown);
@@ -347,12 +380,49 @@ export default function PurchaseOrdersPage() {
       document.removeEventListener("mousedown", onDocDown);
       document.removeEventListener("keydown", onEsc);
     };
-  }, [supplierOpen, productOpen]);
+  }, [supplierOpen, productOpen, openDropdown]);
 
   return (
-    <div className="p-6 w-full">
-      <div className="max-w-5xl space-y-6 mx-auto">
-        <div className="flex items-start justify-between gap-4">
+    <div className="p-6 w-full h-screen overflow-y-auto">
+      <style jsx global>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #po-list-print, #po-list-print * { visibility: visible !important; }
+          #po-list-print {
+            position: absolute !important; 
+            left: 0 !important;
+            top: 0 !important; 
+            width: 100% !important;
+            padding: 0 !important; 
+            margin: 0 !important;
+          }
+          .no-print { display: none !important; visibility: hidden !important; }
+          table { 
+            border-collapse: collapse !important; 
+            width: 100% !important;
+            min-width: auto !important;
+            table-layout: auto !important;
+          }
+          th, td { 
+            border: 1px solid #ddd !important; 
+            font-size: 10px !important;
+            padding: 4px !important;
+            white-space: nowrap !important;
+          }
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
+          }
+        }
+      `}</style>
+      <div id="po-list-print" className="max-w-5xl space-y-6 mx-auto">
+        <div className="hidden print:block mb-3">
+          <div className="text-lg font-semibold">Purchase Orders</div>
+          <div className="text-sm">Total records: {total}</div>
+          <div className="text-xs text-gray-500">Printed: {printedAt || "-"}</div>
+        </div>
+
+        <div className="no-print flex items-start justify-between gap-4">
           <div>
             <div className="text-2xl font-semibold text-slate-900">Purchase Orders</div>
             <div className="text-sm text-slate-500">Orders do not change stock/due. Bill is done in Add Purchase.</div>
@@ -568,15 +638,15 @@ export default function PurchaseOrdersPage() {
         ) : (
           <>
             <div className="no-print bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="md:col-span-2">
                   <div className="text-xs mb-1 text-slate-500">Search</div>
-                  <input className={inputBase} placeholder="Search by ref / supplier..." value={q} onChange={(e) => setQ(e.target.value)} />
+                  <input className={inputBase} placeholder="Search by ref / supplier..." value={q} onChange={(e) => { setPage(1); setQ(e.target.value); }} />
                 </div>
 
                 <div>
                   <div className="text-xs mb-1 text-slate-500">Status</div>
-                  <select className={inputBase} value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <select className={inputBase} value={status} onChange={(e) => { setPage(1); setStatus(e.target.value); }}>
                     <option value="">All</option>
                     <option value="DRAFT">Draft</option>
                     <option value="FINAL">Final</option>
@@ -586,7 +656,7 @@ export default function PurchaseOrdersPage() {
 
                 <div>
                   <div className="text-xs mb-1 text-slate-500">Location</div>
-                  <select className={inputBase} value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)}>
+                  <select className={inputBase} value={locationFilter} onChange={(e) => { setPage(1); setLocationFilter(e.target.value); }}>
                     <option value="">All</option>
                     {locations.map((l) => (
                       <option key={l._id} value={l._id}>
@@ -598,7 +668,7 @@ export default function PurchaseOrdersPage() {
 
                 <div>
                   <div className="text-xs mb-1 text-slate-500">Show</div>
-                  <select className={inputBase} value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+                  <select className={inputBase} value={limit} onChange={(e) => { setPage(1); setLimit(Number(e.target.value)); }}>
                     {[10, 25, 50, 100].map((n) => (
                       <option key={n} value={n}>
                         {n}
@@ -609,21 +679,32 @@ export default function PurchaseOrdersPage() {
               </div>
             </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
-              <table className="min-w-[1100px] w-full text-sm">
+            <div className="no-print flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap text-sm text-slate-600">
+                <a className={pillBtn} href={exportCsvUrl} target="_blank" rel="noreferrer">Export CSV</a>
+                <a className={pillBtn} href={exportExcelUrl} target="_blank" rel="noreferrer">Export Excel</a>
+                <button className={pillBtn} onClick={onPrint}>Export PDF / Print</button>
+              </div>
+              <div className="text-sm text-slate-500">Total: {total}</div>
+            </div>
+
+              <div style={{ overflow: 'visible' }} id="po-list-print">
+                <table className="min-w-[1100px] w-full text-sm">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Action</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide no-print">Actions</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Date</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Reference</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Supplier</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Location</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Subtotal</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Added By</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wide">Created At</th>
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody style={{ position: 'relative' }}>
                   {loading ? (
                     <tr>
                       <td className="px-4 py-6 text-sm text-slate-500" colSpan={7}>Loading...</td>
@@ -632,24 +713,60 @@ export default function PurchaseOrdersPage() {
                     rows.map((r) => (
                       <tr key={r._id} className="border-t border-slate-100 hover:bg-slate-50 transition">
                         <td className="px-4 py-3 no-print">
-                          <div className="flex gap-2 flex-wrap">
-                            {can.cancel && r.status === "FINAL" ? (
-                              <button
-                                className="text-xs border border-rose-200 text-rose-700 bg-rose-50 rounded-lg px-3 py-1.5 hover:bg-rose-100"
-                                onClick={() => cancelOrder(r._id)}
-                              >
-                                Cancel
-                              </button>
-                            ) : null}
-
-                            {can.delete && r.status === "DRAFT" ? (
-                              <button
-                                className="text-xs border border-rose-200 text-rose-700 bg-rose-50 rounded-lg px-3 py-1.5 hover:bg-rose-100"
-                                onClick={() => deleteDraft(r._id)}
-                              >
-                                Delete Draft
-                              </button>
-                            ) : null}
+                          <div className="relative">
+                            <button 
+                              onClick={() => setOpenDropdown(openDropdown === r._id ? null : r._id)}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors"
+                            >
+                              <span>Actions</span>
+                              <svg className={`w-3.5 h-3.5 transition-transform ${openDropdown === r._id ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                              </svg>
+                            </button>
+                            {openDropdown === r._id && (
+                              <div className="absolute left-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg z-[10000] overflow-hidden">
+                                <div className="py-1">
+                                  <Link
+                                    href={`/erp/purchase/order/${r._id}`}
+                                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-indigo-600 hover:bg-indigo-50 transition-colors border-b border-slate-100"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    <span>View Details</span>
+                                  </Link>
+                                  {can.cancel && r.status === "FINAL" && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdown(null);
+                                        cancelOrder(r._id);
+                                      }}
+                                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-amber-600 hover:bg-amber-50 transition-colors border-b border-slate-100"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                      <span>Cancel Order</span>
+                                    </button>
+                                  )}
+                                  {can.delete && r.status === "DRAFT" && (
+                                    <button
+                                      onClick={() => {
+                                        setOpenDropdown(null);
+                                        deleteDraft(r._id);
+                                      }}
+                                      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                      <span>Delete Draft</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </td>
 
@@ -663,6 +780,8 @@ export default function PurchaseOrdersPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-slate-700 whitespace-nowrap">Rs. {money(r.subtotal)}</td>
+                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap no-print">{r.addedByName || "-"}</td>
+                        <td className="px-4 py-3 text-slate-700 whitespace-nowrap">{fmtPK(r.createdAt)}</td>
                       </tr>
                     ))
                   ) : (
@@ -674,12 +793,13 @@ export default function PurchaseOrdersPage() {
 
                 <tfoot>
                   <tr className="border-t border-slate-200 bg-slate-50">
-                    <td className="px-4 py-3 font-semibold text-slate-700" colSpan={6}>Total:</td>
+                    <td className="px-4 py-3 font-semibold text-slate-700" colSpan={7}>Total:</td>
                     <td className="px-4 py-3 font-semibold text-slate-700 whitespace-nowrap">Rs. {money(totals.subtotal)}</td>
+                    <td className="px-4 py-3" colSpan={1} />
                   </tr>
                 </tfoot>
-              </table>
-            </div>
+                </table>
+              </div>
 
             <div className="mt-2 flex items-center justify-end gap-2 text-sm no-print">
               <button

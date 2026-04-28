@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { requireCompanyAuth, authErrorResponse } from "@/lib/auth";
 import { nextRefNo } from "@/lib/refNo";
+import { updateProductStock, validateStockAvailability } from "@/lib/stockManager";
 import StockTransfer from "@/models/StockTransfer";
 import Product from "@/models/Product";
 
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
 
     if (!fromLocationId) return NextResponse.json({ error: "FROM_LOCATION_REQUIRED" }, { status: 400 });
     if (!toLocationId) return NextResponse.json({ error: "TO_LOCATION_REQUIRED" }, { status: 400 });
+    if (fromLocationId === toLocationId) return NextResponse.json({ error: "SAME_LOCATION_TRANSFER" }, { status: 400 });
     if (!referenceNo) return NextResponse.json({ error: "REFERENCE_REQUIRED" }, { status: 400 });
     if (!["PENDING", "IN_TRANSIT", "COMPLETED"].includes(status))
       return NextResponse.json({ error: "INVALID_STATUS" }, { status: 400 });
@@ -111,7 +113,7 @@ export async function POST(req: NextRequest) {
       isActive: true,
       _id: { $in: productIds },
     })
-      .select("_id name sku")
+      .select("_id name sku manageStock")
       .lean();
 
     const pMap = new Map(products.map((p: any) => [String(p._id), p]));
@@ -134,6 +136,21 @@ export async function POST(req: NextRequest) {
     if (items.some((it: any) => !it.productId || it.qty <= 0 || it.unitPrice < 0))
       return NextResponse.json({ error: "INVALID_ITEMS" }, { status: 400 });
 
+    // Validate stock availability for IN_TRANSIT and COMPLETED status
+    if (status === "IN_TRANSIT" || status === "COMPLETED") {
+      for (const item of items) {
+        const product = pMap.get(item.productId);
+        if (product?.manageStock) {
+          await validateStockAvailability(
+            session.companyId,
+            item.productId,
+            fromLocationId,
+            item.qty
+          );
+        }
+      }
+    }
+
     const subtotal = items.reduce((s: number, it: any) => s + it.lineTotal, 0);
     const grandTotal = subtotal + shippingCharges;
 
@@ -154,10 +171,55 @@ export async function POST(req: NextRequest) {
       finalizedAt: status === "COMPLETED" ? new Date() : null,
     });
 
+    // Process stock movements based on status
+    if (status === "IN_TRANSIT" || status === "COMPLETED") {
+      // Move stock out from source location
+      for (const item of items) {
+        const product = pMap.get(item.productId);
+        if (product?.manageStock) {
+          await updateProductStock({
+            companyId: session.companyId,
+            productId: item.productId,
+            locationId: fromLocationId,
+            quantity: item.qty,
+            type: "TRANSFER_OUT",
+            referenceType: "STOCK_TRANSFER",
+            referenceId: doc._id.toString(),
+            referenceNo,
+            notes: `Transfer to ${toLocationId}`,
+            createdBy: session.userId,
+          });
+        }
+      }
+    }
+
+    if (status === "COMPLETED") {
+      // Move stock in to destination location
+      for (const item of items) {
+        const product = pMap.get(item.productId);
+        if (product?.manageStock) {
+          await updateProductStock({
+            companyId: session.companyId,
+            productId: item.productId,
+            locationId: toLocationId,
+            quantity: item.qty,
+            type: "TRANSFER_IN",
+            referenceType: "STOCK_TRANSFER",
+            referenceId: doc._id.toString(),
+            referenceNo,
+            notes: `Transfer from ${fromLocationId}`,
+            createdBy: session.userId,
+          });
+        }
+      }
+    }
+
     return NextResponse.json({ row: doc }, { status: 201 });
   } catch (err: any) {
     if (String(err?.message || "") === "INVALID_PRODUCT")
       return NextResponse.json({ error: "INVALID_PRODUCT" }, { status: 400 });
+    if (String(err?.message || "").includes("Insufficient stock"))
+      return NextResponse.json({ error: err.message }, { status: 400 });
     if (err?.code === 11000)
       return NextResponse.json({ error: "REFERENCE_ALREADY_EXISTS" }, { status: 409 });
     return authErrorResponse(err);

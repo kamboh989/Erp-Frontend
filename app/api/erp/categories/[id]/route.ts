@@ -6,6 +6,22 @@ import Category from "@/models/Category";
 // ✅ Next.js 15: params is Promise
 type Ctx = { params: Promise<{ id: string }> };
 
+export async function GET(req: NextRequest, ctx: Ctx) {
+  try {
+    const session = await requireCompanyAuth(req);
+    await connectDB();
+
+    const { id } = await ctx.params;
+
+    const row = await Category.findOne({ _id: id, companyId: session.companyId, isActive: true }).lean();
+    if (!row) return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });
+    
+    return NextResponse.json({ row });
+  } catch (err) {
+    return authErrorResponse(err);
+  }
+}
+
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   try {
     const session = await requireCompanyAuth(req);
